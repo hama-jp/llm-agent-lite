@@ -8,13 +8,14 @@ import './App.css'
 
 function App() {
   const [currentView, setCurrentView] = useState('chat')
+  const [workflowActions, setWorkflowActions] = useState(null)
 
   const renderCurrentView = () => {
     switch (currentView) {
       case 'chat':
         return <ChatView />
       case 'workflow':
-        return <WorkflowView />
+        return <WorkflowView onWorkflowActions={setWorkflowActions} />
       case 'data':
         return <DataView />
       case 'settings':
@@ -25,7 +26,11 @@ function App() {
   }
 
   return (
-    <Layout currentView={currentView} onViewChange={setCurrentView}>
+    <Layout 
+      currentView={currentView} 
+      onViewChange={setCurrentView}
+      workflowActions={workflowActions}
+    >
       {renderCurrentView()}
     </Layout>
   )

@@ -5,6 +5,41 @@ class NodeExecutionService {
     this.isExecuting = false
     this.executionContext = {}
     this.variables = {}
+    this.executionLog = []
+    this.debugMode = false
+  }
+
+  // デバッグモードを設定
+  setDebugMode(enabled) {
+    this.debugMode = enabled
+  }
+
+  // ログを追加
+  addLog(level, message, nodeId = null, data = null) {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      level,
+      message,
+      nodeId,
+      data,
+      variables: { ...this.variables }
+    }
+    
+    this.executionLog.push(logEntry)
+    
+    if (this.debugMode) {
+      console.log(`[${level}] ${message}`, data)
+    }
+  }
+
+  // 実行ログを取得
+  getExecutionLog() {
+    return this.executionLog
+  }
+
+  // ログをクリア
+  clearLog() {
+    this.executionLog = []
   }
 
   // ワークフローを実行
@@ -16,10 +51,19 @@ class NodeExecutionService {
     this.isExecuting = true
     this.executionContext = {}
     this.variables = { ...inputData }
+    this.clearLog()
+
+    this.addLog('info', 'ワークフロー実行開始', null, { 
+      nodeCount: nodes.length, 
+      connectionCount: connections.length,
+      inputData 
+    })
 
     try {
       // 実行順序を決定
       const executionOrder = this.determineExecutionOrder(nodes, connections)
+      
+      this.addLog('info', '実行順序決定完了', null, { executionOrder })
       
       if (onProgress) {
         onProgress({ step: 0, total: executionOrder.length, status: 'starting' })
@@ -30,7 +74,12 @@ class NodeExecutionService {
         const nodeId = executionOrder[i]
         const node = nodes.find(n => n.id === nodeId)
         
-        if (!node) continue
+        if (!node) {
+          this.addLog('error', `ノードが見つかりません: ${nodeId}`)
+          continue
+        }
+
+        this.addLog('info', `ノード実行開始: ${node.data.label || node.type}`, nodeId, node.data)
 
         if (onProgress) {
           onProgress({ 
@@ -38,13 +87,27 @@ class NodeExecutionService {
             total: executionOrder.length, 
             status: 'running',
             nodeId: nodeId,
-            nodeName: node.data.label
+            nodeName: node.data.label || node.type,
+            currentNodeId: nodeId
           })
         }
 
         try {
-          await this.executeNode(node, nodes, connections)
+          const startTime = Date.now()
+          const result = await this.executeNode(node, nodes, connections)
+          const executionTime = Date.now() - startTime
+          
+          this.addLog('success', `ノード実行完了: ${node.data.label || node.type}`, nodeId, { 
+            result, 
+            executionTime: `${executionTime}ms` 
+          })
+          
         } catch (error) {
+          this.addLog('error', `ノード実行エラー: ${error.message}`, nodeId, { 
+            error: error.stack,
+            nodeData: node.data 
+          })
+          
           if (onProgress) {
             onProgress({ 
               step: i + 1, 
@@ -54,7 +117,7 @@ class NodeExecutionService {
               error: error.message
             })
           }
-          throw error
+          throw new Error(`ノード "${node.data.label || node.type}" でエラーが発生しました: ${error.message}`)
         }
       }
 
@@ -62,12 +125,21 @@ class NodeExecutionService {
         onProgress({ step: executionOrder.length, total: executionOrder.length, status: 'completed' })
       }
 
+      this.addLog('success', 'ワークフロー実行完了', null, { 
+        totalNodes: executionOrder.length,
+        finalVariables: this.variables 
+      })
+
       return {
         success: true,
         variables: this.variables,
-        executionContext: this.executionContext
+        executionContext: this.executionContext,
+        executionLog: this.executionLog
       }
 
+    } catch (error) {
+      this.addLog('error', `ワークフロー実行失敗: ${error.message}`, null, { error: error.stack })
+      throw error
     } finally {
       this.isExecuting = false
     }
@@ -75,49 +147,58 @@ class NodeExecutionService {
 
   // 実行順序を決定（トポロジカルソート）
   determineExecutionOrder(nodes, connections) {
-    const graph = new Map()
-    const inDegree = new Map()
+    try {
+      const graph = new Map()
+      const inDegree = new Map()
 
-    // グラフを構築
-    nodes.forEach(node => {
-      graph.set(node.id, [])
-      inDegree.set(node.id, 0)
-    })
+      // グラフを構築
+      nodes.forEach(node => {
+        graph.set(node.id, [])
+        inDegree.set(node.id, 0)
+      })
 
-    connections.forEach(conn => {
-      graph.get(conn.from.nodeId).push(conn.to.nodeId)
-      inDegree.set(conn.to.nodeId, inDegree.get(conn.to.nodeId) + 1)
-    })
+      connections.forEach(conn => {
+        if (!graph.has(conn.from.nodeId) || !graph.has(conn.to.nodeId)) {
+          throw new Error(`無効な接続: ${conn.from.nodeId} -> ${conn.to.nodeId}`)
+        }
+        graph.get(conn.from.nodeId).push(conn.to.nodeId)
+        inDegree.set(conn.to.nodeId, inDegree.get(conn.to.nodeId) + 1)
+      })
 
-    // トポロジカルソート
-    const queue = []
-    const result = []
+      // トポロジカルソート
+      const queue = []
+      const result = []
 
-    // 入次数が0のノードをキューに追加
-    inDegree.forEach((degree, nodeId) => {
-      if (degree === 0) {
-        queue.push(nodeId)
-      }
-    })
-
-    while (queue.length > 0) {
-      const nodeId = queue.shift()
-      result.push(nodeId)
-
-      graph.get(nodeId).forEach(neighbor => {
-        inDegree.set(neighbor, inDegree.get(neighbor) - 1)
-        if (inDegree.get(neighbor) === 0) {
-          queue.push(neighbor)
+      // 入次数が0のノードをキューに追加
+      inDegree.forEach((degree, nodeId) => {
+        if (degree === 0) {
+          queue.push(nodeId)
         }
       })
-    }
 
-    // 循環参照チェック
-    if (result.length !== nodes.length) {
-      throw new Error('ワークフローに循環参照があります')
-    }
+      while (queue.length > 0) {
+        const nodeId = queue.shift()
+        result.push(nodeId)
 
-    return result
+        graph.get(nodeId).forEach(neighbor => {
+          inDegree.set(neighbor, inDegree.get(neighbor) - 1)
+          if (inDegree.get(neighbor) === 0) {
+            queue.push(neighbor)
+          }
+        })
+      }
+
+      // 循環参照チェック
+      if (result.length !== nodes.length) {
+        const unreachableNodes = nodes.filter(node => !result.includes(node.id))
+        throw new Error(`ワークフローに循環参照があります。到達不可能なノード: ${unreachableNodes.map(n => n.data.label || n.id).join(', ')}`)
+      }
+
+      return result
+    } catch (error) {
+      this.addLog('error', `実行順序決定エラー: ${error.message}`)
+      throw error
+    }
   }
 
   // 単一ノードを実行

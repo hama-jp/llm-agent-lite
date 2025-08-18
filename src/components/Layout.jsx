@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Menu, Settings, MessageSquare, Workflow, Database, X } from 'lucide-react'
+import { Menu, Settings, MessageSquare, Workflow, Database, X, Save, Upload, Download, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button.jsx'
 
-const Layout = ({ children, currentView, onViewChange }) => {
+const Layout = ({ children, currentView, onViewChange, workflowActions }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
   const menuItems = [
@@ -48,6 +48,71 @@ const Layout = ({ children, currentView, onViewChange }) => {
               )
             })}
           </ul>
+          
+          {/* ワークフロー管理 - ワークフロー画面でのみ表示 */}
+          {currentView === 'workflow' && workflowActions && (
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">ワークフロー管理</h3>
+              <div className="space-y-2">
+                <Button
+                  onClick={workflowActions.save}
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                >
+                  <Save className="h-3 w-3 mr-2" />
+                  保存
+                </Button>
+                <Button
+                  onClick={workflowActions.load}
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                >
+                  <Upload className="h-3 w-3 mr-2" />
+                  読み込み
+                </Button>
+                <Button
+                  onClick={workflowActions.export}
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                >
+                  <Download className="h-3 w-3 mr-2" />
+                  エクスポート
+                </Button>
+                <label className="block">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start cursor-pointer"
+                    asChild
+                  >
+                    <span>
+                      <Upload className="h-3 w-3 mr-2" />
+                      インポート
+                    </span>
+                  </Button>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={workflowActions.import}
+                    className="hidden"
+                  />
+                </label>
+                <Button
+                  onClick={workflowActions.execute}
+                  disabled={workflowActions.isExecuting}
+                  variant="default"
+                  size="sm"
+                  className="w-full justify-start"
+                >
+                  <Play className="h-3 w-3 mr-2" />
+                  {workflowActions.isExecuting ? '実行中...' : '実行'}
+                </Button>
+              </div>
+            </div>
+          )}
         </nav>
       </div>
 
