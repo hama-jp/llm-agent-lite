@@ -23,39 +23,66 @@ const NodeEditor = () => {
   // ノードタイプの定義
   const nodeTypes = {
     input: {
-      name: '📥入力',
-      color: 'bg-orange-500',
+      name: '📥 入力',
+      icon: '📥',
+      color: 'bg-gradient-to-br from-orange-400 to-orange-600',
+      borderColor: 'border-orange-300',
+      textColor: 'text-white',
       inputs: [],
       outputs: ['output'],
       defaultData: { value: '', placeholder: '入力値を設定してください' }
     },
     llm: {
-      name: '🤖LLM生成',
-      color: 'bg-blue-500',
+      name: '🤖 LLM生成',
+      icon: '🤖',
+      color: 'bg-gradient-to-br from-blue-400 to-blue-600',
+      borderColor: 'border-blue-300',
+      textColor: 'text-white',
       inputs: ['input'],
       outputs: ['output'],
-      defaultData: { prompt: 'あなたは優秀なアシスタントです。以下の入力に対して適切に回答してください。\n\n入力: {{input}}', temperature: 0.7 }
+      defaultData: { 
+        prompt: 'あなたは優秀なアシスタントです。以下の入力に対して適切に回答してください。\n\n入力: {{input}}', 
+        temperature: 0.7,
+        model: 'default',
+        streaming: false
+      }
     },
     if: {
-      name: '🔀If条件分岐',
-      color: 'bg-pink-500',
+      name: '🔀 If条件分岐',
+      icon: '🔀',
+      color: 'bg-gradient-to-br from-pink-400 to-pink-600',
+      borderColor: 'border-pink-300',
+      textColor: 'text-white',
       inputs: ['input'],
       outputs: ['true', 'false'],
-      defaultData: { conditionType: 'llm', condition: '入力が肯定的な内容かどうか判断してください', variable: '', operator: '==', value: '' }
+      defaultData: { 
+        conditionType: 'llm', 
+        condition: '入力が肯定的な内容かどうか判断してください', 
+        variable: '', 
+        operator: '==', 
+        value: '',
+        multipleConditions: []
+      }
     },
     while: {
-      name: '🔄While繰り返し',
-      color: 'bg-purple-500',
+      name: '🔄 While繰り返し',
+      icon: '🔄',
+      color: 'bg-gradient-to-br from-purple-400 to-purple-600',
+      borderColor: 'border-purple-300',
+      textColor: 'text-white',
       inputs: ['input'],
       outputs: ['output'],
       defaultData: { conditionType: 'variable', condition: '', variable: 'counter', operator: '<', value: '10', maxIterations: 100 }
     },
     output: {
-      name: '📤出力',
-      color: 'bg-green-500',
+      name: '📤 出力',
+      icon: '📤',
+      color: 'bg-gradient-to-br from-green-400 to-green-600',
+      borderColor: 'border-green-300',
+      textColor: 'text-white',
       inputs: ['input'],
       outputs: [],
-      defaultData: { format: 'text' }
+      defaultData: { format: 'text', title: '結果' }
     }
   }
 
@@ -265,61 +292,101 @@ const NodeEditor = () => {
   const renderNode = (node) => {
     const nodeType = nodeTypes[node.type]
     const isSelected = selectedNode?.id === node.id
+    const isExecuting = executionProgress?.nodeId === node.id
+    const hasError = executionError && executionProgress?.nodeId === node.id
 
     return (
       <div
         key={node.id}
-        className={`absolute bg-white border-2 rounded-lg shadow-lg cursor-move min-w-32 ${
-          isSelected ? 'border-blue-500' : 'border-gray-300'
-        }`}
+        className={`absolute bg-white border-2 rounded-lg shadow-lg cursor-move min-w-40 transition-all duration-200 hover:shadow-xl ${
+          isSelected ? `${nodeType.borderColor} border-4 shadow-2xl` : 'border-gray-300'
+        } ${isExecuting ? 'animate-pulse' : ''} ${hasError ? 'border-red-500' : ''}`}
         style={{
           left: node.position.x,
           top: node.position.y,
-          zIndex: isSelected ? 10 : 1
+          zIndex: isSelected ? 10 : 1,
+          transform: isSelected ? 'scale(1.02)' : 'scale(1)'
         }}
         onMouseDown={(e) => handleMouseDown(e, node)}
       >
-        <div className={`${nodeType.color} text-white px-3 py-2 rounded-t-md flex items-center justify-between`}>
-          <span className="text-sm font-medium">{node.data.label}</span>
+        {/* ヘッダー */}
+        <div className={`${nodeType.color} ${nodeType.textColor} px-3 py-2 rounded-t-md flex items-center justify-between`}>
+          <div className="flex items-center space-x-2">
+            <span className="text-lg">{nodeType.icon}</span>
+            <span className="text-sm font-medium truncate max-w-24">{node.data.label}</span>
+          </div>
           <button
             onClick={(e) => {
               e.stopPropagation()
               deleteNode(node.id)
             }}
-            className="text-white hover:text-red-200 ml-2"
+            className="text-white hover:text-red-200 ml-2 opacity-70 hover:opacity-100 transition-opacity"
           >
             <Trash2 className="h-3 w-3" />
           </button>
         </div>
         
-        <div className="p-3">
+        {/* ボディ */}
+        <div className="p-3 space-y-2">
           {/* 入力ポート */}
           {nodeType.inputs.map((input, index) => (
-            <div key={`input-${index}`} className="flex items-center mb-2">
+            <div key={`input-${index}`} className="flex items-center">
               <div
-                className="port w-3 h-3 bg-gray-400 rounded-full cursor-pointer hover:bg-gray-600 mr-2"
+                className={`port w-4 h-4 rounded-full cursor-pointer transition-all duration-200 mr-2 ${
+                  isConnecting && connectionStart?.nodeId !== node.id 
+                    ? 'bg-green-400 hover:bg-green-500 shadow-lg' 
+                    : 'bg-gray-400 hover:bg-gray-600'
+                }`}
                 onClick={() => handlePortClick(node.id, index, false)}
+                title={`入力: ${input}`}
               />
-              <span className="text-xs text-gray-600">{input}</span>
+              <span className="text-xs text-gray-600 font-medium">{input}</span>
             </div>
           ))}
           
-          {/* ノード内容 */}
-          <div className="text-xs text-gray-800 my-2">
-            {node.type}
+          {/* ノード内容プレビュー */}
+          <div className="text-xs text-gray-700 bg-gray-50 p-2 rounded border">
+            {node.type === 'input' && (
+              <div className="truncate">{node.data.value || node.data.placeholder}</div>
+            )}
+            {node.type === 'llm' && (
+              <div className="truncate">プロンプト: {node.data.prompt?.substring(0, 30)}...</div>
+            )}
+            {node.type === 'if' && (
+              <div className="truncate">条件: {node.data.condition?.substring(0, 30)}...</div>
+            )}
+            {node.type === 'while' && (
+              <div className="truncate">繰り返し: {node.data.variable} {node.data.operator} {node.data.value}</div>
+            )}
+            {node.type === 'output' && (
+              <div className="truncate">形式: {node.data.format}</div>
+            )}
           </div>
           
           {/* 出力ポート */}
           {nodeType.outputs.map((output, index) => (
-            <div key={`output-${index}`} className="flex items-center justify-end mb-2">
-              <span className="text-xs text-gray-600 mr-2">{output}</span>
+            <div key={`output-${index}`} className="flex items-center justify-end">
+              <span className="text-xs text-gray-600 font-medium mr-2">{output}</span>
               <div
-                className="port w-3 h-3 bg-gray-400 rounded-full cursor-pointer hover:bg-gray-600"
+                className={`port w-4 h-4 rounded-full cursor-pointer transition-all duration-200 ${
+                  isConnecting && connectionStart?.nodeId === node.id && connectionStart?.isOutput
+                    ? 'bg-blue-400 hover:bg-blue-500 shadow-lg'
+                    : 'bg-gray-400 hover:bg-gray-600'
+                }`}
                 onClick={() => handlePortClick(node.id, index, true)}
+                title={`出力: ${output}`}
               />
             </div>
           ))}
         </div>
+        
+        {/* 実行状態インジケーター */}
+        {isExecuting && (
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-ping"></div>
+        )}
+        {hasError && (
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
+        )}
       </div>
     )
   }
@@ -536,21 +603,90 @@ const NodeEditor = () => {
                   <textarea
                     value={selectedNode.data.prompt || ''}
                     onChange={(e) => updateNodeData(selectedNode.id, { prompt: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md"
+                    className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     rows={6}
+                    placeholder="プロンプトを入力してください。{{input}}で入力値を参照できます。"
                   />
+                  <div className="text-xs text-gray-500 mt-1">
+                    使用可能な変数: {{input}}, {{variable_name}}
+                  </div>
                 </div>
+                
                 <div>
-                  <label className="block text-sm font-medium mb-1">温度 (Temperature)</label>
+                  <label className="block text-sm font-medium mb-1">モデル</label>
+                  <select
+                    value={selectedNode.data.model || 'default'}
+                    onChange={(e) => updateNodeData(selectedNode.id, { model: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="default">デフォルト</option>
+                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                    <option value="gpt-4">GPT-4</option>
+                    <option value="claude-3-haiku">Claude 3 Haiku</option>
+                    <option value="claude-3-sonnet">Claude 3 Sonnet</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    温度 (Temperature): {selectedNode.data.temperature || 0.7}
+                  </label>
                   <input
-                    type="number"
+                    type="range"
                     min="0"
                     max="2"
                     step="0.1"
                     value={selectedNode.data.temperature || 0.7}
                     onChange={(e) => updateNodeData(selectedNode.id, { temperature: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border rounded-md"
+                    className="w-full"
                   />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>保守的 (0)</span>
+                    <span>創造的 (2)</span>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedNode.data.streaming || false}
+                      onChange={(e) => updateNodeData(selectedNode.id, { streaming: e.target.checked })}
+                      className="rounded"
+                    />
+                    <span className="text-sm font-medium">ストリーミング出力</span>
+                  </label>
+                  <div className="text-xs text-gray-500 mt-1">
+                    リアルタイムで出力を表示します
+                  </div>
+                </div>
+                
+                {/* プロンプトテンプレート */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">プロンプトテンプレート</label>
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        updateNodeData(selectedNode.id, { prompt: e.target.value })
+                      }
+                    }}
+                    className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    defaultValue=""
+                  >
+                    <option value="">テンプレートを選択...</option>
+                    <option value="あなたは優秀なアシスタントです。以下の入力に対して適切に回答してください。\n\n入力: {{input}}">
+                      基本アシスタント
+                    </option>
+                    <option value="以下のテキストを要約してください。重要なポイントを3つ以内で簡潔にまとめてください。\n\nテキスト: {{input}}">
+                      要約
+                    </option>
+                    <option value="以下のテキストを日本語に翻訳してください。\n\nテキスト: {{input}}">
+                      翻訳
+                    </option>
+                    <option value="以下のコードを解説してください。何をしているか、どのように動作するかを説明してください。\n\nコード: {{input}}">
+                      コード解説
+                    </option>
+                  </select>
                 </div>
               </>
             )}
