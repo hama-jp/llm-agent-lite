@@ -1,0 +1,227 @@
+import { useState, useRef, useEffect } from 'react'
+import { Send, Bot, User, AlertCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button.jsx'
+import { Input } from '@/components/ui/input.jsx'
+import { Card, CardContent } from '@/components/ui/card.jsx'
+import { Alert, AlertDescription } from '@/components/ui/alert.jsx'
+import llmService from '../services/llmService.js'
+
+const ChatView = () => {
+  const [messages, setMessages] = useState([
+    {
+      id: 1,
+      type: 'bot',
+      content: 'こんにちは！LLM Agent Liteへようこそ。何かお手伝いできることはありますか？',
+      timestamp: new Date().toLocaleTimeString()
+    }
+  ])
+  const [inputValue, setInputValue] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const messagesEndRef = useRef(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || isLoading) return
+
+    const userMessage = {
+      id: Date.now(),
+      type: 'user',
+      content: inputValue,
+      timestamp: new Date().toLocaleTimeString()
+    }
+
+    setMessages(prev => [...prev, userMessage])
+    setInputValue('')
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await llmService.sendMessage(inputValue)
+      
+      const botMessage = {
+        id: Date.now() + 1,
+        type: 'bot',
+        content: response,
+        timestamp: new Date().toLocaleTimeString()
+      }
+      
+      setMessages(prev => [...prev, botMessage])
+      
+      // チャット履歴をローカルストレージに保存
+      const chatHistory = JSON.parse(localStorage.getItem('llm-agent-chat-history') || '[]')
+      const updatedHistory = [...chatHistory, userMessage, botMessage]
+      localStorage.setItem('llm-agent-chat-history', JSON.stringify(updatedHistory.slice(-100))) // 最新100件のみ保存
+      
+    } catch (error) {
+      console.error('LLM API Error:', error)
+      setError(error.message)
+      
+      const errorMessage = {
+        id: Date.now() + 1,
+        type: 'bot',
+        content: `エラーが発生しました: ${error.message}`,
+        timestamp: new Date().toLocaleTimeString(),
+        isError: true
+      }
+      
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
+  }
+
+  const handleClearChat = () => {
+    if (confirm('チャット履歴をクリアしますか？')) {
+      setMessages([
+        {
+          id: 1,
+          type: 'bot',
+          content: 'チャット履歴がクリアされました。新しい会話を始めましょう！',
+          timestamp: new Date().toLocaleTimeString()
+        }
+      ])
+      localStorage.removeItem('llm-agent-chat-history')
+      setError(null)
+    }
+  }
+
+  // コンポーネントマウント時にチャット履歴を復元
+  useEffect(() => {
+    const savedHistory = localStorage.getItem('llm-agent-chat-history')
+    if (savedHistory) {
+      try {
+        const history = JSON.parse(savedHistory)
+        if (history.length > 0) {
+          setMessages(history)
+        }
+      } catch (error) {
+        console.error('Failed to load chat history:', error)
+      }
+    }
+  }, [])
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* エラー表示 */}
+      {error && (
+        <Alert className="mb-4 border-red-200 bg-red-50">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800">
+            {error}
+            <br />
+            <span className="text-sm">設定画面でAPIキーとエンドポイントを確認してください。</span>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* チャット履歴 */}
+      <div className="flex-1 overflow-y-auto mb-4 space-y-4">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+          >
+            <Card className={`max-w-[80%] ${
+              message.type === 'user' 
+                ? 'bg-blue-500 text-white' 
+                : message.isError 
+                  ? 'bg-red-50 border-red-200' 
+                  : 'bg-white'
+            }`}>
+              <CardContent className="p-3">
+                <div className="flex items-start space-x-2">
+                  {message.type === 'bot' && (
+                    <Bot className={`h-5 w-5 mt-0.5 ${message.isError ? 'text-red-500' : 'text-gray-500'}`} />
+                  )}
+                  {message.type === 'user' && (
+                    <User className="h-5 w-5 mt-0.5 text-white" />
+                  )}
+                  <div className="flex-1">
+                    <p className={`text-sm whitespace-pre-wrap ${
+                      message.isError ? 'text-red-800' : ''
+                    }`}>
+                      {message.content}
+                    </p>
+                    <p className={`text-xs mt-1 ${
+                      message.type === 'user' 
+                        ? 'text-blue-100' 
+                        : message.isError 
+                          ? 'text-red-400' 
+                          : 'text-gray-400'
+                    }`}>
+                      {message.timestamp}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ))}
+        {isLoading && (
+          <div className="flex justify-start">
+            <Card className="bg-white">
+              <CardContent className="p-3">
+                <div className="flex items-center space-x-2">
+                  <Bot className="h-5 w-5 text-gray-500" />
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  </div>
+                  <span className="text-sm text-gray-500">応答を生成中...</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* 入力エリア */}
+      <div className="flex space-x-2">
+        <Input
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder="メッセージを入力してください..."
+          disabled={isLoading}
+          className="flex-1"
+        />
+        <Button
+          onClick={handleSendMessage}
+          disabled={!inputValue.trim() || isLoading}
+          size="icon"
+        >
+          <Send className="h-4 w-4" />
+        </Button>
+        <Button
+          onClick={handleClearChat}
+          variant="outline"
+          size="icon"
+          disabled={isLoading}
+          title="チャット履歴をクリア"
+        >
+          <Bot className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+export default ChatView
+

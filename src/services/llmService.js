@@ -1,0 +1,172 @@
+// LLMサービス接続機能
+class LLMService {
+  constructor() {
+    this.settings = this.loadSettings()
+  }
+
+  // 設定をローカルストレージから読み込み
+  loadSettings() {
+    const saved = localStorage.getItem('llm-agent-settings')
+    return saved ? JSON.parse(saved) : {
+      provider: 'openai',
+      apiKey: '',
+      baseUrl: '',
+      model: 'gpt-3.5-turbo',
+      temperature: 0.7,
+      maxTokens: 2048
+    }
+  }
+
+  // 設定を保存
+  saveSettings(settings) {
+    this.settings = settings
+    localStorage.setItem('llm-agent-settings', JSON.stringify(settings))
+  }
+
+  // API接続テスト
+  async testConnection() {
+    if (!this.settings.apiKey) {
+      throw new Error('APIキーが設定されていません')
+    }
+
+    try {
+      const response = await this.sendMessage('テスト', { isTest: true })
+      return { success: true, message: 'API接続テストが成功しました' }
+    } catch (error) {
+      throw new Error(`API接続に失敗しました: ${error.message}`)
+    }
+  }
+
+  // メッセージ送信
+  async sendMessage(message, options = {}) {
+    const { provider, apiKey, baseUrl, model, temperature, maxTokens } = this.settings
+
+    if (!apiKey) {
+      throw new Error('APIキーが設定されていません。設定画面でAPIキーを入力してください。')
+    }
+
+    let endpoint = ''
+    let headers = {}
+    let body = {}
+
+    switch (provider) {
+      case 'openai':
+        endpoint = 'https://api.openai.com/v1/chat/completions'
+        headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        }
+        body = {
+          model: model,
+          messages: [{ role: 'user', content: message }],
+          temperature: temperature,
+          max_tokens: maxTokens
+        }
+        break
+
+      case 'anthropic':
+        endpoint = 'https://api.anthropic.com/v1/messages'
+        headers = {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
+        }
+        body = {
+          model: model,
+          max_tokens: maxTokens,
+          messages: [{ role: 'user', content: message }]
+        }
+        break
+
+      case 'local':
+      case 'custom':
+        endpoint = `${baseUrl}/chat/completions`
+        headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        }
+        body = {
+          model: model,
+          messages: [{ role: 'user', content: message }],
+          temperature: temperature,
+          max_tokens: maxTokens
+        }
+        break
+
+      default:
+        throw new Error(`未対応のプロバイダー: ${provider}`)
+    }
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(body)
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+
+    // レスポンス形式の正規化
+    switch (provider) {
+      case 'openai':
+      case 'local':
+      case 'custom':
+        return data.choices?.[0]?.message?.content || 'レスポンスが空です'
+
+      case 'anthropic':
+        return data.content?.[0]?.text || 'レスポンスが空です'
+
+      default:
+        return 'レスポンスの解析に失敗しました'
+    }
+  }
+
+  // ストリーミング対応のメッセージ送信（将来の拡張用）
+  async sendMessageStream(message, onChunk) {
+    // TODO: ストリーミング機能を実装
+    const response = await this.sendMessage(message)
+    onChunk(response)
+    return response
+  }
+
+  // 設定の検証
+  validateSettings(settings) {
+    const errors = []
+
+    if (!settings.provider) {
+      errors.push('プロバイダーを選択してください')
+    }
+
+    if (!settings.apiKey) {
+      errors.push('APIキーを入力してください')
+    }
+
+    if ((settings.provider === 'local' || settings.provider === 'custom') && !settings.baseUrl) {
+      errors.push('ベースURLを入力してください')
+    }
+
+    if (!settings.model) {
+      errors.push('モデルを選択してください')
+    }
+
+    if (settings.temperature < 0 || settings.temperature > 2) {
+      errors.push('温度は0.0から2.0の間で設定してください')
+    }
+
+    if (settings.maxTokens < 1 || settings.maxTokens > 8192) {
+      errors.push('最大トークン数は1から8192の間で設定してください')
+    }
+
+    return errors
+  }
+}
+
+// シングルトンインスタンス
+const llmService = new LLMService()
+
+export default llmService
+
