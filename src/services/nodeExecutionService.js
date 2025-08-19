@@ -256,7 +256,7 @@ class NodeExecutionService {
       const inputValue = inputs.input || ''
       const prompt = `${condition}\n\n入力: ${inputValue}\n\n上記の条件に基づいて、入力が条件を満たすかどうかを判断してください。満たす場合は「true」、満たさない場合は「false」のみを回答してください。`
       try {
-        const response = await llmService.generateText(prompt, { temperature: 0 })
+        const response = await llmService.sendMessage(prompt, { temperature: 0 })
         conditionResult = response.toLowerCase().includes('true')
       } catch (error) {
         throw new Error(`条件判断エラー: ${error.message}`)
@@ -302,7 +302,7 @@ class NodeExecutionService {
         const inputValue = inputs.input || ''
         const prompt = `${condition}\n\n現在の状況: ${inputValue}\n反復回数: ${iteration}\n\n上記の条件に基づいて、処理を続行するかどうかを判断してください。続行する場合は「true」、停止する場合は「false」のみを回答してください。`
         try {
-          const response = await llmService.generateText(prompt, { temperature: 0 })
+          const response = await llmService.sendMessage(prompt, { temperature: 0 })
           shouldContinue = response.toLowerCase().includes('true')
         } catch (error) {
           throw new Error(`While条件判断エラー: ${error.message}`)
