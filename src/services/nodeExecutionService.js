@@ -256,7 +256,9 @@ class NodeExecutionService {
       const inputValue = inputs.input || ''
       const prompt = `${condition}\n\n入力: ${inputValue}\n\n上記の条件に基づいて、入力が条件を満たすかどうかを判断してください。満たす場合は「true」、満たさない場合は「false」のみを回答してください。`
       try {
-        const response = await llmService.sendMessage(prompt, { temperature: 0 })
+        const model = node.data.model
+        const temperature = node.data.temperature
+        const response = await llmService.sendMessage(prompt, { model, temperature })
         conditionResult = response.toLowerCase().includes('true')
       } catch (error) {
         throw new Error(`条件判断エラー: ${error.message}`)
