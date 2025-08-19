@@ -1,14 +1,18 @@
 import React, { useState, useRef, useCallback, useLayoutEffect, useMemo, useEffect } from 'react'
-import { Plus, Play, Save, Download, Upload, Trash2, Square, FileUp, StepForward, RotateCcw } from 'lucide-react'
+import { Plus, Play, Save, Download, Upload, Trash2, Square, FileUp, StepForward, RotateCcw, MoreHorizontal, FilePlus, FolderOpen, Trash, Edit, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Alert, AlertDescription } from '@/components/ui/alert.jsx'
+import { Alert, AlertDescription, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu.jsx'
+import { Input } from '@/components/ui/input.jsx'
 import nodeExecutionService from '../services/nodeExecutionService.js'
 import llmService from '../services/llmService.js'
+import workflowManagerService from '../services/workflowManagerService.js'
 import { debounce } from '../lib/utils.js'
 
 const NodeEditor = () => {
+  const [currentWorkflow, setCurrentWorkflow] = useState(null);
   const [nodes, setNodes] = useState([])
   const [connections, setConnections] = useState([])
   const [selectedNode, setSelectedNode] = useState(null)
@@ -24,17 +28,78 @@ const NodeEditor = () => {
   const [selectedConnection, setSelectedConnection] = useState(null)
   const [draggingLine, setDraggingLine] = useState(null)
   const [executor, setExecutor] = useState(null)
-  const [executionState, setExecutionState] = useState({
-    running: false,
-    currentNodeId: null,
-    executedNodeIds: new Set(),
-  })
+  const [executionState, setExecutionState] = useState({ running: false, currentNodeId: null, executedNodeIds: new Set() })
   const [connectionPaths, setConnectionPaths] = useState([]);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [workflows, setWorkflows] = useState([]);
+
   const canvasRef = useRef(null)
   const nodeRefs = useRef(new Map())
   const portRefs = useRef(new Map())
   const editingNodeRef = useRef();
   editingNodeRef.current = editingNode;
+  const renameInputRef = useRef(null);
+
+  // Initial load
+  useEffect(() => {
+    const workflowId = workflowManagerService.getCurrentWorkflowId();
+    loadWorkflow(workflowId);
+    setWorkflows(Object.values(workflowManagerService.getWorkflows()));
+  }, []);
+
+  const debouncedSave = useMemo(() => debounce((wf) => {
+    if (wf) {
+      workflowManagerService.saveWorkflow(wf);
+      setWorkflows(Object.values(workflowManagerService.getWorkflows()));
+    }
+  }, 1000), []);
+
+  useEffect(() => {
+    if (currentWorkflow) {
+      const wfToSave = { ...currentWorkflow, nodes, connections };
+      debouncedSave(wfToSave);
+    }
+  }, [nodes, connections, currentWorkflow?.name, debouncedSave]);
+
+  const loadWorkflow = (id) => {
+    const wf = workflowManagerService.getWorkflow(id);
+    if (wf) {
+      setCurrentWorkflow(wf);
+      setNodes(wf.nodes || []);
+      setConnections(wf.connections || []);
+      workflowManagerService.setCurrentWorkflowId(id);
+    }
+  };
+
+  const handleNewWorkflow = () => {
+    const newWf = workflowManagerService.createNewWorkflow();
+    workflowManagerService.saveWorkflow(newWf);
+    loadWorkflow(newWf.id);
+    setWorkflows(Object.values(workflowManagerService.getWorkflows()));
+  };
+
+  const handleRenameWorkflow = (newName) => {
+    if (currentWorkflow && newName) {
+      setCurrentWorkflow(prev => ({...prev, name: newName}));
+    }
+    setIsRenaming(false);
+  };
+
+  const handleDeleteWorkflow = (id) => {
+    if (window.confirm('本当にこのワークフローを削除しますか？')) {
+      workflowManagerService.deleteWorkflow(id);
+      const newCurrentId = workflowManagerService.getCurrentWorkflowId();
+      loadWorkflow(newCurrentId);
+      setWorkflows(Object.values(workflowManagerService.getWorkflows()));
+    }
+  };
+
+  useEffect(() => {
+    if (isRenaming && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [isRenaming]);
 
   useEffect(() => {
     if (selectedNode) {
@@ -54,9 +119,7 @@ const NodeEditor = () => {
       const toPortEl = portRefs.current.get(`${conn.to.nodeId}-input-${conn.to.portIndex}`)
       const canvasEl = canvasRef.current
 
-      if (!fromPortEl || !toPortEl || !canvasEl) {
-        return null
-      }
+      if (!fromPortEl || !toPortEl || !canvasEl) return null
 
       const canvasRect = canvasEl.getBoundingClientRect()
       const fromPortRect = fromPortEl.getBoundingClientRect()
@@ -78,14 +141,7 @@ const NodeEditor = () => {
       else if (fromPortName === 'false') strokeColor = '#ef4444'
       else if (fromPortName === 'loop') strokeColor = '#8b5cf6'
 
-      return {
-        id: conn.id,
-        pathData,
-        strokeColor,
-        fromPortName,
-        fromX,
-        fromY,
-      };
+      return { id: conn.id, pathData, strokeColor, fromPortName, fromX, fromY };
     }).filter(Boolean);
 
     setConnectionPaths(newConnectionPaths);
@@ -152,34 +208,21 @@ const NodeEditor = () => {
     setNodes(prev => prev.map(node => node.id === nodeId ? { ...node, position } : node));
   };
 
-  const updateNodeData = useCallback((nodeId, data) => {
-    setNodes(prev => prev.map(node =>
-      node.id === nodeId
-        ? { ...node, data: { ...node.data, ...data } }
-        : node
-    ));
-    setSelectedNode(prev => (prev && prev.id === nodeId)
-      ? { ...prev, data: { ...prev.data, ...data } }
-      : prev
-    );
-  }, []);
+  const debouncedSetNodes = useMemo(() => debounce(setNodes, 500), []);
 
-  const debouncedUpdateGlobalState = useMemo(
-    () => debounce(() => {
-      if (!editingNodeRef.current) return;
-      updateNodeData(editingNodeRef.current.id, editingNodeRef.current.data);
-    }, 500),
-    [updateNodeData]
-  );
+  useEffect(() => {
+    if (editingNode) {
+      const updater = (prevNodes) => prevNodes.map(n =>
+        n.id === editingNode.id ? { ...n, data: editingNode.data } : n
+      );
+      debouncedSetNodes(updater);
+    }
+  }, [editingNode, debouncedSetNodes]);
 
   const handleDataChange = (partialData) => {
     if (!editingNode) return;
-
     const newEditingNodeData = { ...editingNode.data, ...partialData };
-    const updatedNode = { ...editingNode, data: newEditingNodeData };
-    setEditingNode(updatedNode);
-
-    debouncedUpdateGlobalState();
+    setEditingNode(prev => ({ ...prev, data: newEditingNodeData }));
   };
 
   const handleNodeMouseDown = (e, node) => {
@@ -187,10 +230,7 @@ const NodeEditor = () => {
     setDraggedNode(node);
     const rect = canvasRef.current?.getBoundingClientRect();
     if (rect) {
-      setDragOffset({
-        x: e.clientX - rect.left - node.position.x,
-        y: e.clientY - rect.top - node.position.y
-      });
+      setDragOffset({ x: e.clientX - rect.left - node.position.x, y: e.clientY - rect.top - node.position.y });
     }
   };
 
@@ -228,9 +268,7 @@ const NodeEditor = () => {
   }, [draggedNode, dragOffset, isConnecting, draggingLine]);
 
   const handleMouseUp = () => {
-    if (draggedNode) {
-      setDraggedNode(null);
-    }
+    if (draggedNode) setDraggedNode(null);
     if (isConnecting) {
       setIsConnecting(false);
       setConnectionStart(null);
@@ -260,9 +298,7 @@ const NodeEditor = () => {
       const newNodes = prevNodes.map(node => {
         if (node.type === 'output' && finalContext[node.id] !== undefined) {
           const updatedNode = { ...node, data: { ...node.data, result: String(finalContext[node.id]) } };
-          if (selectedNode && selectedNode.id === node.id) {
-            newSelectedNode = updatedNode;
-          }
+          if (selectedNode && selectedNode.id === node.id) newSelectedNode = updatedNode;
           return updatedNode;
         }
         return node;
@@ -270,9 +306,7 @@ const NodeEditor = () => {
       return newNodes;
     });
 
-    if (newSelectedNode) {
-      setSelectedNode(newSelectedNode);
-    }
+    if (newSelectedNode) setSelectedNode(newSelectedNode);
     setDebugLog(nodeExecutionService.getExecutionLog());
   };
 
@@ -315,7 +349,7 @@ const NodeEditor = () => {
     let currentExecutor = executor;
     try {
       if (!currentExecutor) {
-        const inputNodes = nodes.filter(node => node.type === 'input');
+        const inputNodes = nodes.filter(n => n.type === 'input');
         const inputData = Object.fromEntries(inputNodes.map(n => [n.id, n.data.value || '']));
         currentExecutor = nodeExecutionService.startExecution(nodes, connections, inputData);
         setExecutor(currentExecutor);
@@ -352,20 +386,14 @@ const NodeEditor = () => {
     setDebugLog([]);
   };
 
-  const saveWorkflow = () => {
-    const workflow = { nodes, connections };
-    localStorage.setItem('llm-agent-workflow', JSON.stringify(workflow));
-    alert('ワークフローを保存しました');
-  };
-
   const exportWorkflow = () => {
-    const workflow = { nodes, connections };
-    const dataStr = JSON.stringify(workflow, null, 2);
+    if (!currentWorkflow) return;
+    const dataStr = JSON.stringify({ ...currentWorkflow, nodes, connections }, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `workflow_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `${currentWorkflow.name}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -383,10 +411,10 @@ const NodeEditor = () => {
       reader.onload = e => {
         try {
           const wf = JSON.parse(e.target.result);
-          if (wf.nodes && wf.connections) {
-            setNodes(wf.nodes);
-            setConnections(wf.connections);
-            setSelectedNode(null);
+          if (wf.nodes && wf.connections && wf.id && wf.name) {
+            workflowManagerService.saveWorkflow(wf);
+            loadWorkflow(wf.id);
+            setWorkflows(Object.values(workflowManagerService.getWorkflows()));
             alert('ワークフローをインポートしました');
           } else {
             alert('無効なワークフローファイルです');
@@ -398,25 +426,6 @@ const NodeEditor = () => {
       reader.readAsText(file);
     };
     input.click();
-  };
-
-  const loadWorkflow = () => {
-    try {
-      const saved = localStorage.getItem('llm-agent-workflow');
-      if (saved) {
-        const wf = JSON.parse(saved);
-        if (wf.nodes && wf.connections) {
-          setNodes(wf.nodes);
-          setConnections(wf.connections);
-          setSelectedNode(null);
-          alert('保存されたワークフローを読み込みました');
-        }
-      } else {
-        alert('保存されたワークフローがありません');
-      }
-    } catch (err) {
-      alert('ワークフローの読み込みに失敗しました');
-    }
   };
 
   const deleteNode = (nodeId) => {
@@ -439,20 +448,10 @@ const NodeEditor = () => {
     if (isSelected) borderClass = `${nodeType.borderColor} border-4 shadow-2xl`;
 
     return (
-      <div
-        key={node.id}
-        ref={(el) => {
-          if (el) {
-            nodeRefs.current.set(node.id, el);
-          } else {
-            nodeRefs.current.delete(node.id);
-          }
-        }}
+      <div key={node.id} ref={(el) => { if (el) nodeRefs.current.set(node.id, el); else nodeRefs.current.delete(node.id); }}
         className={`absolute bg-white border-2 rounded-lg shadow-lg cursor-move min-w-40 transition-all duration-200 hover:shadow-xl ${borderClass}`}
         style={{ left: node.position.x, top: node.position.y, zIndex: isSelected ? 10 : 1, transform: isSelected ? 'scale(1.02)' : 'scale(1)' }}
-        onMouseDown={(e) => handleNodeMouseDown(e, node)}
-        onClick={(e) => handleNodeClick(e, node)}
-      >
+        onMouseDown={(e) => handleNodeMouseDown(e, node)} onClick={(e) => handleNodeClick(e, node)} >
         <div className={`${nodeType.color} ${nodeType.textColor} px-3 py-2 rounded-t-md flex items-center justify-between`}>
           <div className="flex items-center space-x-2"><span className="text-lg">{nodeType.icon}</span><span className="text-sm font-medium truncate max-w-24">{node.data.label}</span></div>
           <button onClick={(e) => { e.stopPropagation(); deleteNode(node.id) }} className="text-white hover:text-red-200 ml-2 opacity-70 hover:opacity-100 transition-opacity"><Trash2 className="h-3 w-3" /></button>
@@ -460,12 +459,7 @@ const NodeEditor = () => {
         <div className="p-3 space-y-2">
           {nodeType.inputs.map((inputName, index) => (
             <div key={`input-${index}`} className="flex items-center">
-              <div
-                ref={el => {
-                  const key = `${node.id}-input-${index}`
-                  if (el) portRefs.current.set(key, el)
-                  else portRefs.current.delete(key)
-                }}
+              <div ref={el => { const key = `${node.id}-input-${index}`; if (el) portRefs.current.set(key, el); else portRefs.current.delete(key); }}
                 className={`port w-4 h-4 rounded-full cursor-pointer transition-all duration-200 mr-2 ${isConnecting ? 'bg-green-400 hover:bg-green-500 shadow-lg' : 'bg-gray-400 hover:bg-gray-600'}`} onMouseUp={(e) => handlePortMouseUp(e, node.id, index, false)} title={`入力: ${inputName}`} />
               <span className="text-xs text-gray-600 font-medium">{inputName}</span>
             </div>
@@ -480,12 +474,7 @@ const NodeEditor = () => {
           {nodeType.outputs.map((outputName, index) => (
             <div key={`output-${index}`} className="flex items-center justify-end">
               <span className="text-xs text-gray-600 font-medium mr-2">{outputName}</span>
-              <div
-                ref={el => {
-                  const key = `${node.id}-output-${index}`
-                  if (el) portRefs.current.set(key, el)
-                  else portRefs.current.delete(key)
-                }}
+              <div ref={el => { const key = `${node.id}-output-${index}`; if (el) portRefs.current.set(key, el); else portRefs.current.delete(key); }}
                 className={`port w-4 h-4 rounded-full cursor-pointer transition-all duration-200 ${isConnecting && connectionStart?.nodeId === node.id && connectionStart?.portIndex === index ? 'bg-blue-600 ring-2 ring-blue-400' : 'bg-gray-400 hover:bg-blue-500'}`} onMouseDown={(e) => handlePortMouseDown(e, node.id, index, true)} title={`出力: ${outputName}`} />
             </div>
           ))}
@@ -532,14 +521,39 @@ const NodeEditor = () => {
     <div className="flex h-full bg-gray-50">
       <div className="flex-1 relative">
         <div className="absolute top-4 left-4 z-30 bg-white/80 backdrop-blur-sm rounded-lg shadow-lg p-2 flex items-center gap-2 border">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="flex gap-2"><FolderOpen className="h-4 w-4" /><span>ワークフロー</span></Button></DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onSelect={handleNewWorkflow}><FilePlus className="mr-2 h-4 w-4" />新規作成</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>開く</DropdownMenuLabel>
+              {workflows.map(wf => (<DropdownMenuItem key={wf.id} onSelect={() => loadWorkflow(wf.id)}>{wf.name}</DropdownMenuItem>))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={importWorkflow}><Upload className="mr-2 h-4 w-4" />インポート</DropdownMenuItem>
+              <DropdownMenuItem onSelect={exportWorkflow}><Download className="mr-2 h-4 w-4" />エクスポート</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {isRenaming ? (
+            <Input ref={renameInputRef} type="text" defaultValue={currentWorkflow?.name} onBlur={(e) => handleRenameWorkflow(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleRenameWorkflow(e.target.value)} className="h-8 w-48"/>
+          ) : (
+            <span className="text-sm font-semibold px-2">{currentWorkflow?.name}</span>
+          )}
+          <Button variant="ghost" size="icon" onClick={() => setIsRenaming(true)} className="h-8 w-8"><Edit className="h-4 w-4" /></Button>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600"><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader><AlertDialogTitle>本当に削除しますか？</AlertDialogTitle><AlertDialogDescription>この操作は元に戻せません。「{currentWorkflow?.name}」は完全に削除されます。</AlertDialogDescription></AlertDialogHeader>
+              <AlertDialogFooter><AlertDialogCancel>キャンセル</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteWorkflow(currentWorkflow.id)}>削除</AlertDialogAction></AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <div className="w-px h-6 bg-gray-200 mx-2" />
+
           <Button onClick={handleRunAll} disabled={executionState.running} size="sm" className="gap-1.5 bg-green-500 hover:bg-green-600 text-white"><Play className="h-4 w-4" />すべて実行</Button>
           <Button onClick={handleStepForward} disabled={executionState.running && executor} size="sm" variant="outline" className="gap-1.5"><StepForward className="h-4 w-4" />ステップ</Button>
           <Button onClick={handleResetExecution} disabled={!executionState.running} size="sm" variant="destructive" className="gap-1.5"><RotateCcw className="h-4 w-4" />リセット</Button>
-          <div className="w-px h-6 bg-gray-200" />
-          <Button onClick={saveWorkflow} size="sm" variant="outline" className="gap-1.5"><Save className="h-4 w-4" />保存</Button>
-          <Button onClick={loadWorkflow} size="sm" variant="outline" className="gap-1.5"><Upload className="h-4 w-4" />読込</Button>
-          <Button onClick={exportWorkflow} size="sm" variant="outline" className="gap-1.5"><Download className="h-4 w-4" />エクスポート</Button>
-          <Button onClick={importWorkflow} size="sm" variant="outline" className="gap-1.5"><FileUp className="h-4 w-4" />インポート</Button>
         </div>
         <div ref={canvasRef} className="w-full h-full relative cursor-crosshair" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onContextMenu={handleCanvasRightClick} onClick={(e) => { closeContextMenu(); setSelectedNode(null); setSelectedConnection(null) }} style={{ backgroundImage: 'radial-gradient(circle, #ccc 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
           {renderConnections()}
@@ -562,40 +576,9 @@ const NodeEditor = () => {
               {editingNode.type === 'input' && ( <><div><label className="block text-sm font-medium mb-1">入力値</label><textarea value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="実行時の入力値を設定します" /></div></> )}
               {editingNode.type === 'llm' && (
                 <>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">プロンプト</label>
-                    <textarea
-                      value={editingNode.data.prompt || ''}
-                      onChange={(e) => handleDataChange({ prompt: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
-                      rows={5}
-                      placeholder="プロンプトを入力してください"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Temperature</label>
-                    <input
-                      type="number"
-                      value={editingNode.data.temperature || 0.7}
-                      onChange={(e) => handleDataChange({ temperature: parseFloat(e.target.value) })}
-                      className="w-full px-3 py-2 border rounded-md"
-                      min="0"
-                      max="2"
-                      step="0.1"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Model</label>
-                    <select
-                      value={editingNode.data.model || 'gpt-5-nano'}
-                      onChange={(e) => handleDataChange({ model: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
-                    >
-                      <option value="gpt-5">gpt-5</option>
-                      <option value="gpt-5-mini">gpt-5-mini</option>
-                      <option value="gpt-5-nano">gpt-5-nano</option>
-                    </select>
-                  </div>
+                  <div><label className="block text-sm font-medium mb-1">プロンプト</label><textarea value={editingNode.data.prompt || ''} onChange={(e) => handleDataChange({ prompt: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={5} placeholder="プロンプトを入力してください" /></div>
+                  <div><label className="block text-sm font-medium mb-1">Temperature</label><input type="number" value={editingNode.data.temperature || 0.7} onChange={(e) => handleDataChange({ temperature: parseFloat(e.target.value) })} className="w-full px-3 py-2 border rounded-md" min="0" max="2" step="0.1" /></div>
+                  <div><label className="block text-sm font-medium mb-1">Model</label><select value={editingNode.data.model || 'gpt-5-nano'} onChange={(e) => handleDataChange({ model: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="gpt-5">gpt-5</option><option value="gpt-5-mini">gpt-5-mini</option><option value="gpt-5-nano">gpt-5-nano</option></select></div>
                 </>
               )}
               {editingNode.type === 'if' && ( <><div><label className="block text-sm font-medium mb-1">条件タイプ</label><select value={editingNode.data.conditionType || 'llm'} onChange={(e) => handleDataChange({ conditionType: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="llm">LLM判断</option><option value="variable">変数比較</option></select></div>{editingNode.data.conditionType === 'llm' ? (<><div><label className="block text-sm font-medium mb-1">判断条件</label><textarea value={editingNode.data.condition || ''} onChange={(e) => handleDataChange({ condition: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="LLMに判断させる条件を入力" /></div><div><label className="block text-sm font-medium mb-1">Temperature</label><input type="number" value={editingNode.data.temperature || 0.7} onChange={(e) => handleDataChange({ temperature: parseFloat(e.target.value) })} className="w-full px-3 py-2 border rounded-md" min="0" max="2" step="0.1" /></div><div><label className="block text-sm font-medium mb-1">Model</label><select value={editingNode.data.model || 'gpt-5-nano'} onChange={(e) => handleDataChange({ model: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="gpt-5">gpt-5</option><option value="gpt-5-mini">gpt-5-mini</option><option value="gpt-5-nano">gpt-5-nano</option></select></div></>) : (<><div><label className="block text-sm font-medium mb-1">変数名</label><input type="text" value={editingNode.data.variable || ''} onChange={(e) => handleDataChange({ variable: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する変数名" /></div><div><label className="block text-sm font-medium mb-1">演算子</label><select value={editingNode.data.operator || '=='} onChange={(e) => handleDataChange({ operator: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="==">==(等しい)</option><option value="!=">!=(等しくない)</option><option value="<">&lt;(より小さい)</option><option value="<=">&lt;=(以下)</option><option value=">">&gt;(より大きい)</option><option value=">=">&gt;=(以上)</option></select></div><div><label className="block text-sm font-medium mb-1">比較値</label><input type="text" value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する値" /></div></>)}</> )}
@@ -638,4 +621,4 @@ const NodeEditor = () => {
   )
 }
 
-export default NodeEditor
+export default NodeEditor;
