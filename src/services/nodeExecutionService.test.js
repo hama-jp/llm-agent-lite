@@ -15,7 +15,7 @@ describe('NodeExecutionService', () => {
     llmService.sendMessage.mockClear()
   })
 
-  it('should execute a simple Input -> LLM -> Output workflow correctly', async () => {
+  it('should execute a simple Input -> LLM -> Output workflow in the correct order', async () => {
     // 1. Define the workflow structure
     const nodes = [
       { id: 'input_1', type: 'input', data: { value: 'Hello World' } },
@@ -34,22 +34,33 @@ describe('NodeExecutionService', () => {
 
     // 3. Start the execution
     const executor = nodeExecutionService.startExecution(nodes, connections, inputData)
+    const executionSteps = []
 
-    // 4. Run the workflow step by step
+    // 4. Run the workflow step by step and record state
     let result = await executor.next()
     while (!result.done) {
+      executionSteps.push(result.value)
       result = await executor.next()
     }
+    executionSteps.push(result.value) // Add the final result
 
-    // 5. Assert the final state
-    expect(result.done).toBe(true)
-    expect(result.value.status).toBe('completed')
+    // 5. Assert the execution flow and order
+    expect(executionSteps.length).toBe(4) // 3 nodes + 1 final step
+    expect(executionSteps[0].status).toBe('running')
+    expect(executionSteps[0].currentNodeId).toBe('input_1')
+    expect(executionSteps[1].status).toBe('running')
+    expect(executionSteps[1].currentNodeId).toBe('llm_1')
+    expect(executionSteps[2].status).toBe('running')
+    expect(executionSteps[2].currentNodeId).toBe('output_1')
+    expect(executionSteps[3].status).toBe('completed')
 
-    // The final output should be the result of the last node in the chain (output_1)
-    const finalOutput = nodeExecutionService.executionContext['output_1']
-    expect(finalOutput).toBe(mockLLMResponse)
+    // 6. Assert intermediate and final outputs
+    const finalContext = nodeExecutionService.executionContext
+    expect(finalContext['input_1']).toBe('Hello World')
+    expect(finalContext['llm_1']).toBe(mockLLMResponse)
+    expect(finalContext['output_1']).toBe(mockLLMResponse)
 
-    // Check if LLM service was called correctly
+    // 7. Check if LLM service was called correctly
     expect(llmService.sendMessage).toHaveBeenCalledTimes(1)
     expect(llmService.sendMessage).toHaveBeenCalledWith('Translate to French: Hello World', expect.any(Object))
   })

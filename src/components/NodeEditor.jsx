@@ -28,7 +28,6 @@ const NodeEditor = () => {
   })
   const canvasRef = useRef(null)
 
-  // 接続を削除するキーボードイベント
   React.useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedConnection) {
@@ -41,7 +40,6 @@ const NodeEditor = () => {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [selectedConnection])
 
-  // ノードタイプの定義
   const nodeTypes = {
     input: { name: '入力', icon: '📥', color: 'bg-gradient-to-br from-orange-400 to-orange-600', borderColor: 'border-orange-300', textColor: 'text-white', inputs: [], outputs: ['output'], defaultData: { value: '', placeholder: '入力値を設定してください' } },
     llm: { name: 'LLM生成', icon: '🤖', color: 'bg-gradient-to-br from-blue-400 to-blue-600', borderColor: 'border-blue-300', textColor: 'text-white', inputs: ['input'], outputs: ['output'], defaultData: { prompt: 'あなたは優秀なアシスタントです。以下の入力に対して適切に回答してください。\n\n入力: {{input}}', temperature: 0.7, model: 'default' } },
@@ -50,31 +48,49 @@ const NodeEditor = () => {
     output: { name: '出力', icon: '📤', color: 'bg-gradient-to-br from-green-400 to-green-600', borderColor: 'border-green-300', textColor: 'text-white', inputs: ['input'], outputs: [], defaultData: { format: 'text', title: '結果' } }
   }
 
-  const handleCanvasRightClick = (e) => { e.preventDefault(); const rect = canvasRef.current.getBoundingClientRect(); setContextMenu({ x: e.clientX, y: e.clientY, canvasX: e.clientX - rect.left, canvasY: e.clientY - rect.top }) }
-  const closeContextMenu = () => setContextMenu(null)
-  const addNodeFromContext = (nodeType) => { if (contextMenu) { addNode(nodeType, contextMenu.canvasX, contextMenu.canvasY); closeContextMenu() } }
-  const addNode = (type, x = null, y = null) => { const nodeType = nodeTypes[type]; if (!nodeType) return; const newNode = { id: `${type}_${Date.now()}`, type, position: { x: x !== null ? x : 100 + Math.random() * 200, y: y !== null ? y : 100 + Math.random() * 200 }, data: { label: nodeType.name, ...nodeType.defaultData } }; setNodes(prev => [...prev, newNode]) }
-  const updateNodePosition = (nodeId, position) => setNodes(prev => prev.map(node => node.id === nodeId ? { ...node, position } : node))
-  const updateNodeData = (nodeId, data) => {
-    let newSelectedNode = null;
-    setNodes(prev => {
-      const newNodes = prev.map(node => {
-        if (node.id === nodeId) {
-          const updatedNode = { ...node, data: { ...node.data, ...data } };
-          if (selectedNode && selectedNode.id === nodeId) {
-            newSelectedNode = updatedNode;
-          }
-          return updatedNode;
-        }
-        return node;
-      });
-      return newNodes;
-    });
+  const handleCanvasRightClick = (e) => {
+    e.preventDefault();
+    const rect = canvasRef.current.getBoundingClientRect();
+    setContextMenu({ x: e.clientX, y: e.clientY, canvasX: e.clientX - rect.left, canvasY: e.clientY - rect.top });
+  };
 
-    if (newSelectedNode) {
-      setSelectedNode(newSelectedNode);
+  const closeContextMenu = () => {
+    setContextMenu(null);
+  };
+
+  const addNodeFromContext = (nodeType) => {
+    if (contextMenu) {
+      addNode(nodeType, contextMenu.canvasX, contextMenu.canvasY);
+      closeContextMenu();
     }
-  }
+  };
+
+  const addNode = (type, x = null, y = null) => {
+    const nodeType = nodeTypes[type];
+    if (!nodeType) return;
+    const newNode = { id: `${type}_${Date.now()}`, type, position: { x: x !== null ? x : 100 + Math.random() * 200, y: y !== null ? y : 100 + Math.random() * 200 }, data: { label: nodeType.name, ...nodeType.defaultData } };
+    setNodes(prev => [...prev, newNode]);
+  };
+
+  const updateNodePosition = (nodeId, position) => {
+    setNodes(prev => prev.map(node => node.id === nodeId ? { ...node, position } : node));
+  };
+
+  const updateNodeData = (nodeId, data) => {
+    const newNodes = nodes.map(node => {
+      if (node.id === nodeId) {
+        return { ...node, data: { ...node.data, ...data } };
+      }
+      return node;
+    });
+    setNodes(newNodes);
+
+    if (selectedNode && selectedNode.id === nodeId) {
+      const updatedNode = newNodes.find(n => n.id === nodeId);
+      setSelectedNode(updatedNode);
+    }
+  };
+
   const handleNodeMouseDown = (e, node) => {
     if (e.target.classList.contains('port')) return;
     setDraggedNode(node);
@@ -91,15 +107,63 @@ const NodeEditor = () => {
     e.stopPropagation();
     setSelectedNode(node);
     setSelectedConnection(null);
-  }
-  const handlePortMouseDown = (e, nodeId, portIndex, isOutput) => { e.stopPropagation(); if (!isOutput) return; const fromNode = nodes.find(n => n.id === nodeId); if (!fromNode) return; const rect = e.target.getBoundingClientRect(); const canvasRect = canvasRef.current.getBoundingClientRect(); const startX = rect.left + rect.width / 2 - canvasRect.left; const startY = rect.top + rect.height / 2 - canvasRect.top; setIsConnecting(true); setConnectionStart({ nodeId, portIndex }); setDraggingLine({ startX, startY, endX: startX, endY: startY }) }
-  const handleMouseMove = useCallback((e) => { const canvasRect = canvasRef.current.getBoundingClientRect(); const mouseX = e.clientX - canvasRect.left; const mouseY = e.clientY - canvasRect.top; if (draggedNode) { const newPosition = { x: mouseX - dragOffset.x, y: mouseY - dragOffset.y }; updateNodePosition(draggedNode.id, newPosition) } if (isConnecting && draggingLine) { setDraggingLine(prev => ({ ...prev, endX: mouseX, endY: mouseY })) } }, [draggedNode, dragOffset, isConnecting, draggingLine])
-  const handleMouseUp = () => { if (draggedNode) { setDraggedNode(null) } if (isConnecting) { setIsConnecting(false); setConnectionStart(null); setDraggingLine(null) } }
-  const handlePortMouseUp = (e, nodeId, portIndex, isOutput) => { if (isOutput || !isConnecting || !connectionStart) return; if (connectionStart.nodeId === nodeId) return; if (connections.some(conn => conn.to.nodeId === nodeId && conn.to.portIndex === portIndex)) { console.log("Input port is already connected."); return } const newConnection = { id: `conn_${Date.now()}`, from: connectionStart, to: { nodeId, portIndex } }; setConnections(prev => [...prev, newConnection]); setIsConnecting(false); setConnectionStart(null); setDraggingLine(null) }
+  };
+
+  const handlePortMouseDown = (e, nodeId, portIndex, isOutput) => {
+    e.stopPropagation();
+    if (!isOutput) return;
+    const fromNode = nodes.find(n => n.id === nodeId);
+    if (!fromNode) return;
+    const rect = e.target.getBoundingClientRect();
+    const canvasRect = canvasRef.current.getBoundingClientRect();
+    const startX = rect.left + rect.width / 2 - canvasRect.left;
+    const startY = rect.top + rect.height / 2 - canvasRect.top;
+    setIsConnecting(true);
+    setConnectionStart({ nodeId, portIndex });
+    setDraggingLine({ startX, startY, endX: startX, endY: startY });
+  };
+
+  const handleMouseMove = useCallback((e) => {
+    const canvasRect = canvasRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - canvasRect.left;
+    const mouseY = e.clientY - canvasRect.top;
+    if (draggedNode) {
+      const newPosition = { x: mouseX - dragOffset.x, y: mouseY - dragOffset.y };
+      updateNodePosition(draggedNode.id, newPosition);
+    }
+    if (isConnecting && draggingLine) {
+      setDraggingLine(prev => ({ ...prev, endX: mouseX, endY: mouseY }));
+    }
+  }, [draggedNode, dragOffset, isConnecting, draggingLine]);
+
+  const handleMouseUp = () => {
+    if (draggedNode) {
+      setDraggedNode(null);
+    }
+    if (isConnecting) {
+      setIsConnecting(false);
+      setConnectionStart(null);
+      setDraggingLine(null);
+    }
+  };
+
+  const handlePortMouseUp = (e, nodeId, portIndex, isOutput) => {
+    if (isOutput || !isConnecting || !connectionStart) return;
+    if (connectionStart.nodeId === nodeId) return;
+    if (connections.some(conn => conn.to.nodeId === nodeId && conn.to.portIndex === portIndex)) {
+      console.log("Input port is already connected.");
+      return;
+    }
+    const newConnection = { id: `conn_${Date.now()}`, from: connectionStart, to: { nodeId, portIndex } };
+    setConnections(prev => [...prev, newConnection]);
+    setIsConnecting(false);
+    setConnectionStart(null);
+    setDraggingLine(null);
+  };
 
   const handleRunAll = async () => {
     if (nodes.length === 0) return alert('実行するノードがありません');
-    
+
     const inputNodes = nodes.filter(n => n.type === 'input');
     const inputData = Object.fromEntries(inputNodes.map(n => [n.id, n.data.value || '']));
 
@@ -119,7 +183,6 @@ const NodeEditor = () => {
         }
       } while (!result.done);
 
-      // Handle final state
       const finalState = result.value;
       if (finalState.status === 'completed') {
         setExecutionResult({ success: true, variables: finalState.variables });
@@ -138,7 +201,6 @@ const NodeEditor = () => {
 
   const handleStepForward = async () => {
     let currentExecutor = executor;
-
     try {
       if (!currentExecutor) {
         const inputNodes = nodes.filter(node => node.type === 'input');
@@ -181,11 +243,80 @@ const NodeEditor = () => {
     setDebugLog([]);
   };
 
-  const saveWorkflow = () => { const workflow = { nodes, connections }; localStorage.setItem('llm-agent-workflow', JSON.stringify(workflow)); alert('ワークフローを保存しました') }
-  const exportWorkflow = () => { const workflow = { nodes, connections }; const dataStr = JSON.stringify(workflow, null, 2); const dataBlob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(dataBlob); const link = document.createElement('a'); link.href = url; link.download = `workflow_${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url) }
-  const importWorkflow = () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; input.onchange = e => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { try { const wf = JSON.parse(e.target.result); if (wf.nodes && wf.connections) { setNodes(wf.nodes); setConnections(wf.connections); setSelectedNode(null); alert('ワークフローをインポートしました') } else { alert('無効なワークフローファイルです') } } catch (err) { alert('ファイルの読み込みに失敗しました') } }; reader.readAsText(file) }; input.click() }
-  const loadWorkflow = () => { try { const saved = localStorage.getItem('llm-agent-workflow'); if (saved) { const wf = JSON.parse(saved); if (wf.nodes && wf.connections) { setNodes(wf.nodes); setConnections(wf.connections); setSelectedNode(null); alert('保存されたワークフローを読み込みました') } } else { alert('保存されたワークフローがありません') } } catch (err) { alert('ワークフローの読み込みに失敗しました') } }
-  const deleteNode = (nodeId) => { setNodes(prev => prev.filter(node => node.id !== nodeId)); setConnections(prev => prev.filter(conn => conn.from.nodeId !== nodeId && conn.to.nodeId !== nodeId)); if (selectedNode?.id === nodeId) setSelectedNode(null) }
+  const saveWorkflow = () => {
+    const workflow = { nodes, connections };
+    localStorage.setItem('llm-agent-workflow', JSON.stringify(workflow));
+    alert('ワークフローを保存しました');
+  };
+
+  const exportWorkflow = () => {
+    const workflow = { nodes, connections };
+    const dataStr = JSON.stringify(workflow, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `workflow_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const importWorkflow = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const wf = JSON.parse(e.target.result);
+          if (wf.nodes && wf.connections) {
+            setNodes(wf.nodes);
+            setConnections(wf.connections);
+            setSelectedNode(null);
+            alert('ワークフローをインポートしました');
+          } else {
+            alert('無効なワークフローファイルです');
+          }
+        } catch (err) {
+          alert('ファイルの読み込みに失敗しました');
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  const loadWorkflow = () => {
+    try {
+      const saved = localStorage.getItem('llm-agent-workflow');
+      if (saved) {
+        const wf = JSON.parse(saved);
+        if (wf.nodes && wf.connections) {
+          setNodes(wf.nodes);
+          setConnections(wf.connections);
+          setSelectedNode(null);
+          alert('保存されたワークフローを読み込みました');
+        }
+      } else {
+        alert('保存されたワークフローがありません');
+      }
+    } catch (err) {
+      alert('ワークフローの読み込みに失敗しました');
+    }
+  };
+
+  const deleteNode = (nodeId) => {
+    setNodes(prev => prev.filter(node => node.id !== nodeId));
+    setConnections(prev => prev.filter(conn => conn.from.nodeId !== nodeId && conn.to.nodeId !== nodeId));
+    if (selectedNode?.id === nodeId) {
+      setSelectedNode(null);
+    }
+  };
 
   const renderNode = (node) => {
     const nodeType = nodeTypes[node.type];
