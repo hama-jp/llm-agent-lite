@@ -407,7 +407,6 @@ const NodeEditor = () => {
       const fromNodeEl = nodeRefs.current.get(fromNode.id);
       const fromNodeWidth = fromNodeEl ? fromNodeEl.offsetWidth : 160;
       const fromX = fromNode.position.x + (fromNodeWidth / 2);
-
       const toX = toNode.position.x;
       const headerHeight = 40;
       const portSlotHeight = 24;

@@ -60,7 +60,11 @@ class LLMService {
           model: model,
           messages: [{ role: 'user', content: message }],
           temperature: temperature,
-          max_tokens: maxTokens
+        }
+        if (model.startsWith('gpt-5')) {
+          body.max_completion_tokens = maxTokens;
+        } else {
+          body.max_tokens = maxTokens;
         }
         break
 
