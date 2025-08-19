@@ -81,49 +81,76 @@ const NodeEditor = () => {
   const handleRunAll = async () => {
     if (nodes.length === 0) return alert('実行するノードがありません');
     
-    setExecutionResult(null);
-    setDebugLog([]);
-    nodeExecutionService.setDebugMode(true);
-
     const inputNodes = nodes.filter(n => n.type === 'input');
     const inputData = Object.fromEntries(inputNodes.map(n => [n.id, n.data.value || '']));
 
     const exec = nodeExecutionService.startExecution(nodes, connections, inputData);
     setExecutor(exec);
     setExecutionState({ running: true, currentNodeId: null, executedNodeIds: new Set() });
+    setExecutionResult(null);
+    setDebugLog([]);
+    nodeExecutionService.setDebugMode(true);
 
-    let result;
-    do {
-      result = await exec.next();
-      if (!result.done) {
-        setExecutionState(prev => ({ ...prev, currentNodeId: result.value.currentNodeId, executedNodeIds: new Set(prev.executedNodeIds).add(result.value.currentNodeId) }));
+    try {
+      let result;
+      do {
+        result = await exec.next();
+        if (!result.done) {
+          setExecutionState(prev => ({ ...prev, currentNodeId: result.value.currentNodeId, executedNodeIds: new Set(prev.executedNodeIds).add(result.value.currentNodeId) }));
+        }
+      } while (!result.done);
+
+      // Handle final state
+      const finalState = result.value;
+      if (finalState.status === 'completed') {
+        setExecutionResult({ success: true, variables: finalState.variables });
+      } else {
+        setExecutionResult({ success: false, error: finalState.error?.message || 'Unknown error' });
       }
-    } while (!result.done);
-
-    setExecutionState({ running: false, currentNodeId: null, executedNodeIds: new Set() });
-    setExecutor(null);
-    setExecutionResult(nodeExecutionService.getExecutionLog());
+    } catch (error) {
+      console.error("Workflow execution failed:", error);
+      setExecutionResult({ success: false, error: error.message });
+    } finally {
+      setExecutionState({ running: false, currentNodeId: null, executedNodeIds: new Set() });
+      setExecutor(null);
+      setDebugLog(nodeExecutionService.getExecutionLog());
+    }
   };
 
   const handleStepForward = async () => {
     let currentExecutor = executor;
-    if (!currentExecutor) {
-      const inputNodes = nodes.filter(node => node.type === 'input');
-      const inputData = Object.fromEntries(inputNodes.map(n => [n.id, n.data.value || '']));
-      currentExecutor = nodeExecutionService.startExecution(nodes, connections, inputData);
-      setExecutor(currentExecutor);
-      setExecutionState({ running: true, currentNodeId: null, executedNodeIds: new Set() });
-      alert("ステップ実行を開始します。もう一度「ステップ」を押して最初のノードを実行してください。");
-      return;
-    }
 
-    const result = await currentExecutor.next();
-    
-    if (result.done) {
+    try {
+      if (!currentExecutor) {
+        const inputNodes = nodes.filter(node => node.type === 'input');
+        const inputData = Object.fromEntries(inputNodes.map(n => [n.id, n.data.value || '']));
+        currentExecutor = nodeExecutionService.startExecution(nodes, connections, inputData);
+        setExecutor(currentExecutor);
+        setExecutionState({ running: true, currentNodeId: null, executedNodeIds: new Set() });
+        alert("ステップ実行を開始します。もう一度「ステップ」を押して最初のノードを実行してください。");
+        return;
+      }
+
+      const result = await currentExecutor.next();
+
+      if (result.done) {
+        if (result.value.status === 'completed') {
+          alert('ワークフローの実行が完了しました。');
+          setExecutionResult({ success: true, variables: result.value.variables });
+        } else if (result.value.status === 'error') {
+          alert(`エラーが発生しました: ${result.value.error?.message}`);
+          setExecutionResult({ success: false, error: result.value.error?.message });
+        }
+        handleResetExecution();
+      } else {
+        setExecutionState(prev => ({ ...prev, currentNodeId: result.value.currentNodeId, executedNodeIds: new Set(prev.executedNodeIds).add(result.value.currentNodeId) }));
+      }
+    } catch (error) {
+      console.error("Step forward failed:", error);
+      setExecutionResult({ success: false, error: error.message });
       handleResetExecution();
-      alert('ワークフローの実行が完了しました。');
-    } else {
-      setExecutionState(prev => ({ ...prev, currentNodeId: result.value.currentNodeId, executedNodeIds: new Set(prev.executedNodeIds).add(result.value.currentNodeId) }));
+    } finally {
+      setDebugLog(nodeExecutionService.getExecutionLog());
     }
   };
 
@@ -195,18 +222,19 @@ const NodeEditor = () => {
       const fromX = fromNode.position.x + nodeWidth;
       const fromNodeType = nodeTypes[fromNode.type];
 
-      const headerHeight = 42;
-      const portSlotHeight = 26;
-      const previewHeight = 42;
-      const bodyTopPadding = 12;
+      const headerHeight = 40;
+      const portSlotHeight = 24;
+      const previewHeight = 28;
+      const bodyPadding = 12;
+      const margin = 8;
 
       const inputsHeight = fromNodeType.inputs.length * portSlotHeight;
-      const fromYOffset = headerHeight + bodyTopPadding + inputsHeight + previewHeight;
+      const fromYOffset = headerHeight + bodyPadding + inputsHeight + margin + previewHeight + margin;
 
       const fromY = fromNode.position.y + fromYOffset + (conn.from.portIndex * portSlotHeight);
 
       const toX = toNode.position.x;
-      const toY = toNode.position.y + headerHeight + bodyTopPadding + (conn.to.portIndex * portSlotHeight);
+      const toY = toNode.position.y + headerHeight + bodyPadding + (conn.to.portIndex * portSlotHeight);
 
       const isLoop = fromNode.id === toNode.id;
       const pathData = isLoop ? `M ${fromX} ${fromY} C ${fromX + 60} ${fromY - 60}, ${toX - 60} ${toY - 60}, ${toX} ${toY}` : `M ${fromX} ${fromY} C ${fromX + Math.abs(toX - fromX) * 0.4} ${fromY}, ${toX - Math.abs(toX - fromX) * 0.4} ${toY}, ${toX} ${toY}`;
@@ -280,7 +308,7 @@ const NodeEditor = () => {
             <h3 className="font-semibold mb-4 text-sm">ノードプロパティ</h3>
             <div className="space-y-4">
               <div><label className="block text-sm font-medium mb-1">ノード名</label><input type="text" value={selectedNode.data.label} onChange={(e) => updateNodeData(selectedNode.id, { label: e.target.value })} className="w-full px-3 py-2 border rounded-md" /></div>
-              {selectedNode.type === 'input' && ( <><div><label className="block text-sm font-medium mb-1">デフォルト値</label><textarea value={selectedNode.data.value || ''} onChange={(e) => updateNodeData(selectedNode.id, { value: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} /></div><div><label className="block text-sm font-medium mb-1">プレースホルダー</label><input type="text" value={selectedNode.data.placeholder || ''} onChange={(e) => updateNodeData(selectedNode.id, { placeholder: e.target.value })} className="w-full px-3 py-2 border rounded-md" /></div></> )}
+              {selectedNode.type === 'input' && ( <><div><label className="block text-sm font-medium mb-1">入力値</label><textarea value={selectedNode.data.value || ''} onChange={(e) => updateNodeData(selectedNode.id, { value: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="実行時の入力値を設定します" /></div></> )}
               {selectedNode.type === 'llm' && ( <><div><label className="block text-sm font-medium mb-1">プロンプト</label><textarea value={selectedNode.data.prompt || ''} onChange={(e) => updateNodeData(selectedNode.id, { prompt: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={5} placeholder="プロンプトを入力してください" /></div><div><label className="block text-sm font-medium mb-1">Temperature</label><input type="number" value={selectedNode.data.temperature || 0.7} onChange={(e) => updateNodeData(selectedNode.id, { temperature: parseFloat(e.target.value) })} className="w-full px-3 py-2 border rounded-md" min="0" max="2" step="0.1" /></div></> )}
               {selectedNode.type === 'if' && ( <><div><label className="block text-sm font-medium mb-1">条件タイプ</label><select value={selectedNode.data.conditionType || 'llm'} onChange={(e) => updateNodeData(selectedNode.id, { conditionType: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="llm">LLM判断</option><option value="variable">変数比較</option></select></div>{selectedNode.data.conditionType === 'llm' ? (<div><label className="block text-sm font-medium mb-1">判断条件</label><textarea value={selectedNode.data.condition || ''} onChange={(e) => updateNodeData(selectedNode.id, { condition: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="LLMに判断させる条件を入力" /></div>) : (<><div><label className="block text-sm font-medium mb-1">変数名</label><input type="text" value={selectedNode.data.variable || ''} onChange={(e) => updateNodeData(selectedNode.id, { variable: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する変数名" /></div><div><label className="block text-sm font-medium mb-1">演算子</label><select value={selectedNode.data.operator || '=='} onChange={(e) => updateNodeData(selectedNode.id, { operator: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="==">==(等しい)</option><option value="!=">!=(等しくない)</option><option value="<">&lt;(より小さい)</option><option value="<=">&lt;=(以下)</option><option value=">">&gt;(より大きい)</option><option value=">=">&gt;=(以上)</option></select></div><div><label className="block text-sm font-medium mb-1">比較値</label><input type="text" value={selectedNode.data.value || ''} onChange={(e) => updateNodeData(selectedNode.id, { value: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する値" /></div></>)}</> )}
               {selectedNode.type === 'while' && ( <><div><label className="block text-sm font-medium mb-1">条件タイプ</label><select value={selectedNode.data.conditionType || 'variable'} onChange={(e) => updateNodeData(selectedNode.id, { conditionType: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="variable">変数比較</option><option value="llm">LLM判断</option></select></div>{selectedNode.data.conditionType === 'variable' ? (<><div><label className="block text-sm font-medium mb-1">変数名</label><input type="text" value={selectedNode.data.variable || ''} onChange={(e) => updateNodeData(selectedNode.id, { variable: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する変数名" /></div><div><label className="block text-sm font-medium mb-1">演算子</label><select value={selectedNode.data.operator || '<'} onChange={(e) => updateNodeData(selectedNode.id, { operator: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="==">==(等しい)</option><option value="!=">!=(等しくない)</option><option value="<">&lt;(より小さい)</option><option value="<=">&lt;=(以下)</option><option value=">">&gt;(より大きい)</option><option value=">=">&gt;=(以上)</option></select></div><div><label className="block text-sm font-medium mb-1">比較値</label><input type="text" value={selectedNode.data.value || ''} onChange={(e) => updateNodeData(selectedNode.id, { value: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する値" /></div></>) : (<div><label className="block text-sm font-medium mb-1">継続条件</label><textarea value={selectedNode.data.condition || ''} onChange={(e) => updateNodeData(selectedNode.id, { condition: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="繰り返しを継続する条件を入力" /></div>)}<div><label className="block text-sm font-medium mb-1">最大繰り返し回数</label><input type="number" value={selectedNode.data.maxIterations || 100} onChange={(e) => updateNodeData(selectedNode.id, { maxIterations: parseInt(e.target.value) })} className="w-full px-3 py-2 border rounded-md" min="1" max="1000" /></div></> )}
