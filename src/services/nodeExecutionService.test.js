@@ -6,6 +6,7 @@ import llmService from './llmService'
 vi.mock('./llmService', () => ({
   default: {
     sendMessage: vi.fn(),
+
   },
 }))
 
@@ -30,7 +31,9 @@ describe('NodeExecutionService', () => {
 
     // 2. Mock the LLM response
     const mockLLMResponse = 'Bonjour le monde'
+
     llmService.sendMessage.mockResolvedValue(mockLLMResponse)
+
 
     // 3. Start the execution
     const executor = nodeExecutionService.startExecution(nodes, connections, inputData)
@@ -52,5 +55,6 @@ describe('NodeExecutionService', () => {
     // Check if LLM service was called correctly
     expect(llmService.sendMessage).toHaveBeenCalledTimes(1)
     expect(llmService.sendMessage).toHaveBeenCalledWith('Translate to French: Hello World', expect.any(Object))
+
   })
 })
