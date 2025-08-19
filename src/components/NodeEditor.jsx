@@ -27,6 +27,7 @@ const NodeEditor = () => {
     executedNodeIds: new Set(),
   })
   const canvasRef = useRef(null)
+  const nodeRefs = useRef(new Map())
 
   React.useEffect(() => {
     const handleKeyDown = (e) => {
@@ -354,7 +355,20 @@ const NodeEditor = () => {
     if (isSelected) borderClass = `${nodeType.borderColor} border-4 shadow-2xl`;
 
     return (
-      <div key={node.id} className={`absolute bg-white border-2 rounded-lg shadow-lg cursor-move min-w-40 transition-all duration-200 hover:shadow-xl ${borderClass}`} style={{ left: node.position.x, top: node.position.y, zIndex: isSelected ? 10 : 1, transform: isSelected ? 'scale(1.02)' : 'scale(1)' }} onMouseDown={(e) => handleNodeMouseDown(e, node)} onClick={(e) => handleNodeClick(e, node)}>
+      <div
+        key={node.id}
+        ref={(el) => {
+          if (el) {
+            nodeRefs.current.set(node.id, el);
+          } else {
+            nodeRefs.current.delete(node.id);
+          }
+        }}
+        className={`absolute bg-white border-2 rounded-lg shadow-lg cursor-move min-w-40 transition-all duration-200 hover:shadow-xl ${borderClass}`}
+        style={{ left: node.position.x, top: node.position.y, zIndex: isSelected ? 10 : 1, transform: isSelected ? 'scale(1.02)' : 'scale(1)' }}
+        onMouseDown={(e) => handleNodeMouseDown(e, node)}
+        onClick={(e) => handleNodeClick(e, node)}
+      >
         <div className={`${nodeType.color} ${nodeType.textColor} px-3 py-2 rounded-t-md flex items-center justify-between`}>
           <div className="flex items-center space-x-2"><span className="text-lg">{nodeType.icon}</span><span className="text-sm font-medium truncate max-w-24">{node.data.label}</span></div>
           <button onClick={(e) => { e.stopPropagation(); deleteNode(node.id) }} className="text-white hover:text-red-200 ml-2 opacity-70 hover:opacity-100 transition-opacity"><Trash2 className="h-3 w-3" /></button>
@@ -390,8 +404,10 @@ const NodeEditor = () => {
       const toNode = nodes.find(n => n.id === conn.to.nodeId);
       if (!fromNode || !toNode) return null;
       const fromNodeType = nodeTypes[fromNode.type];
-      const nodeWidth = 160;
-      const fromX = fromNode.position.x + nodeWidth;
+      const fromNodeEl = nodeRefs.current.get(fromNode.id);
+      const fromNodeWidth = fromNodeEl ? fromNodeEl.offsetWidth : 160;
+      const fromX = fromNode.position.x + fromNodeWidth;
+
       const toX = toNode.position.x;
       const headerHeight = 40;
       const portSlotHeight = 24;
