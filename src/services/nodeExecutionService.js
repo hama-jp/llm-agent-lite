@@ -3,18 +3,17 @@ import llmService from './llmService.js'
 class NodeExecutionService {
   constructor() {
     this.isExecuting = false
+    this.executor = null
     this.executionContext = {}
     this.variables = {}
     this.executionLog = []
     this.debugMode = false
   }
 
-  // デバッグモードを設定
   setDebugMode(enabled) {
     this.debugMode = enabled
   }
 
-  // ログを追加
   addLog(level, message, nodeId = null, data = null) {
     const logEntry = {
       timestamp: new Date().toISOString(),
@@ -24,26 +23,21 @@ class NodeExecutionService {
       data,
       variables: { ...this.variables }
     }
-    
     this.executionLog.push(logEntry)
-    
     if (this.debugMode) {
       console.log(`[${level}] ${message}`, data)
     }
   }
 
-  // 実行ログを取得
   getExecutionLog() {
     return this.executionLog
   }
 
-  // ログをクリア
   clearLog() {
     this.executionLog = []
   }
 
-  // ワークフローを実行
-  async executeWorkflow(nodes, connections, inputData = {}, onProgress = null) {
+  startExecution(nodes, connections, inputData = {}) {
     if (this.isExecuting) {
       throw new Error('ワークフローが既に実行中です')
     }
@@ -52,111 +46,94 @@ class NodeExecutionService {
     this.executionContext = {}
     this.variables = { ...inputData }
     this.clearLog()
-
-    this.addLog('info', 'ワークフロー実行開始', null, { 
+    this.addLog('info', 'ワークフロー実行準備完了', null, {
       nodeCount: nodes.length, 
       connectionCount: connections.length,
       inputData 
     })
 
     try {
-      // 実行順序を決定
       const executionOrder = this.determineExecutionOrder(nodes, connections)
-      
       this.addLog('info', '実行順序決定完了', null, { executionOrder })
-      
-      if (onProgress) {
-        onProgress({ step: 0, total: executionOrder.length, status: 'starting' })
-      }
 
-      // ノードを順次実行
-      for (let i = 0; i < executionOrder.length; i++) {
-        const nodeId = executionOrder[i]
-        const node = nodes.find(n => n.id === nodeId)
+      let currentIndex = -1
+
+      this.executor = {
+        _service: this,
         
-        if (!node) {
-          this.addLog('error', `ノードが見つかりません: ${nodeId}`)
-          continue
-        }
-
-        this.addLog('info', `ノード実行開始: ${node.data.label || node.type}`, nodeId, node.data)
-
-        if (onProgress) {
-          onProgress({ 
-            step: i + 1, 
-            total: executionOrder.length, 
-            status: 'running',
-            nodeId: nodeId,
-            nodeName: node.data.label || node.type,
-            currentNodeId: nodeId
-          })
-        }
-
-        try {
-          const startTime = Date.now()
-          const result = await this.executeNode(node, nodes, connections)
-          const executionTime = Date.now() - startTime
-          
-          this.addLog('success', `ノード実行完了: ${node.data.label || node.type}`, nodeId, { 
-            result, 
-            executionTime: `${executionTime}ms` 
-          })
-          
-        } catch (error) {
-          this.addLog('error', `ノード実行エラー: ${error.message}`, nodeId, { 
-            error: error.stack,
-            nodeData: node.data 
-          })
-          
-          if (onProgress) {
-            onProgress({ 
-              step: i + 1, 
-              total: executionOrder.length, 
-              status: 'error',
-              nodeId: nodeId,
-              error: error.message
-            })
+        async next() {
+          if (!this._service.isExecuting) {
+            this._service.addLog('info', '実行が外部から停止されました')
+            return { done: true, value: { status: 'stopped' } }
           }
-          throw new Error(`ノード "${node.data.label || node.type}" でエラーが発生しました: ${error.message}`)
+
+          currentIndex++
+          if (currentIndex >= executionOrder.length) {
+            this._service.isExecuting = false
+            this._service.addLog('success', 'ワークフロー実行完了')
+            return { done: true, value: { status: 'completed', variables: this._service.variables } }
+          }
+
+          const nodeId = executionOrder[currentIndex]
+          const node = nodes.find(n => n.id === nodeId)
+
+          if (!node) {
+            this._service.addLog('error', `ノードが見つかりません: ${nodeId}`)
+            return this.next()
+          }
+          
+          this._service.addLog('info', `ノード実行開始: ${node.data.label || node.type}`, nodeId, node.data)
+          
+          try {
+            const result = await this._service.executeNode(node, nodes, connections)
+            this._service.addLog('success', `ノード実行完了: ${node.data.label || node.type}`, nodeId, { result })
+
+            return {
+              done: false,
+              value: {
+                status: 'running',
+                currentNodeId: nodeId,
+                variables: this._service.variables,
+                result: result
+              }
+            }
+          } catch (error) {
+            this._service.addLog('error', `ノード実行エラー: ${error.message}`, nodeId, { error: error.stack })
+            this._service.isExecuting = false
+            return { done: true, value: { status: 'error', error, nodeId } }
+          }
+        },
+
+        stop() {
+          this._service.stopExecution()
         }
       }
 
-      if (onProgress) {
-        onProgress({ step: executionOrder.length, total: executionOrder.length, status: 'completed' })
-      }
-
-      this.addLog('success', 'ワークフロー実行完了', null, { 
-        totalNodes: executionOrder.length,
-        finalVariables: this.variables 
-      })
-
-      return {
-        success: true,
-        variables: this.variables,
-        executionContext: this.executionContext,
-        executionLog: this.executionLog
-      }
+      return this.executor
 
     } catch (error) {
-      this.addLog('error', `ワークフロー実行失敗: ${error.message}`, null, { error: error.stack })
-      throw error
-    } finally {
+      this.addLog('error', `ワークフロー実行準備エラー: ${error.message}`, null, { error: error.stack })
       this.isExecuting = false
+      throw error
     }
   }
 
-  // 実行順序を決定（トポロジカルソート）
+  stopExecution() {
+    if (this.isExecuting) {
+      this.addLog('info', 'ワークフロー実行停止が要求されました')
+      this.isExecuting = false
+      this.executor = null
+    }
+  }
+
   determineExecutionOrder(nodes, connections) {
     try {
       const graph = new Map()
       const inDegree = new Map()
-
-      // グラフを構築
       nodes.forEach(node => {
         graph.set(node.id, [])
         inDegree.set(node.id, 0)
       })
-
       connections.forEach(conn => {
         if (!graph.has(conn.from.nodeId) || !graph.has(conn.to.nodeId)) {
           throw new Error(`無効な接続: ${conn.from.nodeId} -> ${conn.to.nodeId}`)
@@ -164,22 +141,16 @@ class NodeExecutionService {
         graph.get(conn.from.nodeId).push(conn.to.nodeId)
         inDegree.set(conn.to.nodeId, inDegree.get(conn.to.nodeId) + 1)
       })
-
-      // トポロジカルソート
       const queue = []
       const result = []
-
-      // 入次数が0のノードをキューに追加
       inDegree.forEach((degree, nodeId) => {
         if (degree === 0) {
           queue.push(nodeId)
         }
       })
-
       while (queue.length > 0) {
         const nodeId = queue.shift()
         result.push(nodeId)
-
         graph.get(nodeId).forEach(neighbor => {
           inDegree.set(neighbor, inDegree.get(neighbor) - 1)
           if (inDegree.get(neighbor) === 0) {
@@ -187,13 +158,10 @@ class NodeExecutionService {
           }
         })
       }
-
-      // 循環参照チェック
       if (result.length !== nodes.length) {
         const unreachableNodes = nodes.filter(node => !result.includes(node.id))
         throw new Error(`ワークフローに循環参照があります。到達不可能なノード: ${unreachableNodes.map(n => n.data.label || n.id).join(', ')}`)
       }
-
       return result
     } catch (error) {
       this.addLog('error', `実行順序決定エラー: ${error.message}`)
@@ -201,11 +169,9 @@ class NodeExecutionService {
     }
   }
 
-  // 単一ノードを実行
   async executeNode(node, nodes, connections) {
-    const inputs = this.getNodeInputs(node, connections)
+    const inputs = this.getNodeInputs(node, connections, nodes)
     let output
-
     switch (node.type) {
       case 'input':
         output = await this.executeInputNode(node, inputs)
@@ -225,51 +191,55 @@ class NodeExecutionService {
       default:
         throw new Error(`未知のノードタイプ: ${node.type}`)
     }
-
-    // 実行結果を保存
     this.executionContext[node.id] = output
     return output
   }
 
-  // ノードの入力値を取得
-  getNodeInputs(node, connections) {
-    const inputs = {}
-    
+  getNodeInputs(node, connections, nodes) {
+    const inputs = {};
     connections
       .filter(conn => conn.to.nodeId === node.id)
       .forEach(conn => {
-        const sourceOutput = this.executionContext[conn.from.nodeId]
-        if (sourceOutput !== undefined) {
-          inputs[conn.to.portIndex || 'input'] = sourceOutput
-        }
-      })
+        const sourceOutput = this.executionContext[conn.from.nodeId];
+        const sourceNode = nodes.find(n => n.id === conn.from.nodeId);
 
-    return inputs
+        if (sourceOutput !== undefined && sourceNode) {
+          // NOTE: This logic is simplified due to the service not having node type definitions.
+          // It assumes the primary input is named 'input'.
+          const inputName = 'input';
+
+          if (sourceNode.type === 'if') {
+            // 'if' node output is an object { condition, true, false }
+            // Port 0 is 'true', Port 1 is 'false'
+            if (conn.from.portIndex === 0 && sourceOutput.condition) {
+              inputs[inputName] = sourceOutput.true;
+            } else if (conn.from.portIndex === 1 && !sourceOutput.condition) {
+              inputs[inputName] = sourceOutput.false;
+            }
+          } else {
+            inputs[inputName] = sourceOutput;
+          }
+        }
+      });
+    return inputs;
   }
 
-  // 入力ノードを実行
   async executeInputNode(node, inputs) {
     const value = node.data.value || ''
     this.variables[node.id] = value
     return value
   }
 
-  // LLMノードを実行
   async executeLLMNode(node, inputs) {
     const prompt = node.data.prompt || ''
     const temperature = node.data.temperature || 0.7
-    
-    // 入力値をプロンプトに組み込み
     let finalPrompt = prompt
     Object.entries(inputs).forEach(([key, value]) => {
       finalPrompt = finalPrompt.replace(new RegExp(`{{${key}}}`, 'g'), value)
     })
-
-    // 変数をプロンプトに組み込み
     Object.entries(this.variables).forEach(([key, value]) => {
       finalPrompt = finalPrompt.replace(new RegExp(`{{${key}}}`, 'g'), value)
     })
-
     try {
       const response = await llmService.generateText(finalPrompt, { temperature })
       return response
@@ -278,18 +248,13 @@ class NodeExecutionService {
     }
   }
 
-  // If条件分岐ノードを実行
   async executeIfNode(node, inputs) {
     const conditionType = node.data.conditionType || 'llm'
     let conditionResult = false
-
     if (conditionType === 'llm') {
-      // LLMによる判断
       const condition = node.data.condition || ''
       const inputValue = inputs.input || ''
-      
       const prompt = `${condition}\n\n入力: ${inputValue}\n\n上記の条件に基づいて、入力が条件を満たすかどうかを判断してください。満たす場合は「true」、満たさない場合は「false」のみを回答してください。`
-      
       try {
         const response = await llmService.generateText(prompt, { temperature: 0 })
         conditionResult = response.toLowerCase().includes('true')
@@ -297,60 +262,45 @@ class NodeExecutionService {
         throw new Error(`条件判断エラー: ${error.message}`)
       }
     } else {
-      // 変数による比較
       const variable = node.data.variable || ''
       const operator = node.data.operator || '=='
       const value = node.data.value || ''
-      
       const variableValue = this.variables[variable]
       if (variableValue === undefined) {
         throw new Error(`変数 '${variable}' が見つかりません`)
       }
-
       conditionResult = this.evaluateCondition(variableValue, operator, value)
     }
-
-    // 条件結果に基づいて出力を決定
     return {
       condition: conditionResult,
-      true: conditionResult ? inputs.input : null,
-      false: !conditionResult ? inputs.input : null
+      true: conditionResult ? (inputs.input || null) : null,
+      false: !conditionResult ? (inputs.input || null) : null,
     }
   }
 
-  // While繰り返しノードを実行
   async executeWhileNode(node, inputs, nodes, connections) {
     const conditionType = node.data.conditionType || 'variable'
     const maxIterations = node.data.maxIterations || 100
     const results = []
     let iteration = 0
-
-    // カウンター変数を初期化
     if (conditionType === 'variable') {
       const variable = node.data.variable || 'counter'
       if (this.variables[variable] === undefined) {
         this.variables[variable] = 0
       }
     }
-
     while (iteration < maxIterations) {
       let shouldContinue = false
-
       if (conditionType === 'variable') {
-        // 変数による条件判断
         const variable = node.data.variable || 'counter'
         const operator = node.data.operator || '<'
         const value = node.data.value || '10'
-        
         const variableValue = this.variables[variable]
         shouldContinue = this.evaluateCondition(variableValue, operator, value)
       } else {
-        // LLMによる条件判断
         const condition = node.data.condition || ''
         const inputValue = inputs.input || ''
-        
         const prompt = `${condition}\n\n現在の状況: ${inputValue}\n反復回数: ${iteration}\n\n上記の条件に基づいて、処理を続行するかどうかを判断してください。続行する場合は「true」、停止する場合は「false」のみを回答してください。`
-        
         try {
           const response = await llmService.generateText(prompt, { temperature: 0 })
           shouldContinue = response.toLowerCase().includes('true')
@@ -358,39 +308,30 @@ class NodeExecutionService {
           throw new Error(`While条件判断エラー: ${error.message}`)
         }
       }
-
       if (!shouldContinue) {
         break
       }
-
-      // ループ内の処理を実行（簡略化）
       results.push({
         iteration: iteration,
         input: inputs.input,
         variables: { ...this.variables }
       })
-
-      // カウンター変数を更新
       if (conditionType === 'variable') {
         const variable = node.data.variable || 'counter'
         this.variables[variable] = (this.variables[variable] || 0) + 1
       }
-
       iteration++
     }
-
     return {
       iterations: iteration,
       results: results,
-      output: inputs.input // 最終的な出力
+      output: inputs.input
     }
   }
 
-  // 出力ノードを実行
   async executeOutputNode(node, inputs) {
     const format = node.data.format || 'text'
     const inputValue = inputs.input || ''
-
     switch (format) {
       case 'json':
         try {
@@ -405,12 +346,9 @@ class NodeExecutionService {
     }
   }
 
-  // 条件を評価
   evaluateCondition(leftValue, operator, rightValue) {
-    // 数値として比較を試行
     const leftNum = parseFloat(leftValue)
     const rightNum = parseFloat(rightValue)
-    
     if (!isNaN(leftNum) && !isNaN(rightNum)) {
       switch (operator) {
         case '<': return leftNum < rightNum
@@ -422,7 +360,6 @@ class NodeExecutionService {
         default: return false
       }
     } else {
-      // 文字列として比較
       switch (operator) {
         case '==': return leftValue === rightValue
         case '!=': return leftValue !== rightValue
@@ -435,16 +372,9 @@ class NodeExecutionService {
     }
   }
 
-  // 実行を停止
-  stopExecution() {
-    this.isExecuting = false
-  }
-
-  // 実行状態を取得
   isRunning() {
     return this.isExecuting
   }
 }
 
 export default new NodeExecutionService()
-
