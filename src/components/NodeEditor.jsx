@@ -56,7 +56,23 @@ const NodeEditor = () => {
   const addNode = (type, x = null, y = null) => { const nodeType = nodeTypes[type]; if (!nodeType) return; const newNode = { id: `${type}_${Date.now()}`, type, position: { x: x !== null ? x : 100 + Math.random() * 200, y: y !== null ? y : 100 + Math.random() * 200 }, data: { label: nodeType.name, ...nodeType.defaultData } }; setNodes(prev => [...prev, newNode]) }
   const updateNodePosition = (nodeId, position) => setNodes(prev => prev.map(node => node.id === nodeId ? { ...node, position } : node))
   const updateNodeData = (nodeId, data) => setNodes(prev => prev.map(node => node.id === nodeId ? { ...node, data: { ...node.data, ...data } } : node))
-  const handleNodeMouseDown = (e, node) => { if (e.target.classList.contains('port')) return; setDraggedNode(node); setSelectedNode(node); const rect = canvasRef.current?.getBoundingClientRect(); if (rect) { setDragOffset({ x: e.clientX - rect.left - node.position.x, y: e.clientY - rect.top - node.position.y }) } }
+  const handleNodeMouseDown = (e, node) => {
+    if (e.target.classList.contains('port')) return;
+    setDraggedNode(node);
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      setDragOffset({
+        x: e.clientX - rect.left - node.position.x,
+        y: e.clientY - rect.top - node.position.y
+      });
+    }
+  };
+
+  const handleNodeClick = (e, node) => {
+    e.stopPropagation();
+    setSelectedNode(node);
+    setSelectedConnection(null);
+  }
   const handlePortMouseDown = (e, nodeId, portIndex, isOutput) => { e.stopPropagation(); if (!isOutput) return; const fromNode = nodes.find(n => n.id === nodeId); if (!fromNode) return; const rect = e.target.getBoundingClientRect(); const canvasRect = canvasRef.current.getBoundingClientRect(); const startX = rect.left + rect.width / 2 - canvasRect.left; const startY = rect.top + rect.height / 2 - canvasRect.top; setIsConnecting(true); setConnectionStart({ nodeId, portIndex }); setDraggingLine({ startX, startY, endX: startX, endY: startY }) }
   const handleMouseMove = useCallback((e) => { const canvasRect = canvasRef.current.getBoundingClientRect(); const mouseX = e.clientX - canvasRect.left; const mouseY = e.clientY - canvasRect.top; if (draggedNode) { const newPosition = { x: mouseX - dragOffset.x, y: mouseY - dragOffset.y }; updateNodePosition(draggedNode.id, newPosition) } if (isConnecting && draggingLine) { setDraggingLine(prev => ({ ...prev, endX: mouseX, endY: mouseY })) } }, [draggedNode, dragOffset, isConnecting, draggingLine])
   const handleMouseUp = () => { if (draggedNode) { setDraggedNode(null) } if (isConnecting) { setIsConnecting(false); setConnectionStart(null); setDraggingLine(null) } }
@@ -71,7 +87,7 @@ const NodeEditor = () => {
 
     const inputNodes = nodes.filter(n => n.type === 'input');
     const inputData = Object.fromEntries(inputNodes.map(n => [n.id, n.data.value || '']));
-    
+
     const exec = nodeExecutionService.startExecution(nodes, connections, inputData);
     setExecutor(exec);
     setExecutionState({ running: true, currentNodeId: null, executedNodeIds: new Set() });
@@ -139,7 +155,7 @@ const NodeEditor = () => {
     if (isSelected) borderClass = `${nodeType.borderColor} border-4 shadow-2xl`;
 
     return (
-      <div key={node.id} className={`absolute bg-white border-2 rounded-lg shadow-lg cursor-move min-w-40 transition-all duration-200 hover:shadow-xl ${borderClass}`} style={{ left: node.position.x, top: node.position.y, zIndex: isSelected ? 10 : 1, transform: isSelected ? 'scale(1.02)' : 'scale(1)' }} onMouseDown={(e) => handleNodeMouseDown(e, node)}>
+      <div key={node.id} className={`absolute bg-white border-2 rounded-lg shadow-lg cursor-move min-w-40 transition-all duration-200 hover:shadow-xl ${borderClass}`} style={{ left: node.position.x, top: node.position.y, zIndex: isSelected ? 10 : 1, transform: isSelected ? 'scale(1.02)' : 'scale(1)' }} onMouseDown={(e) => handleNodeMouseDown(e, node)} onClick={(e) => handleNodeClick(e, node)}>
         <div className={`${nodeType.color} ${nodeType.textColor} px-3 py-2 rounded-t-md flex items-center justify-between`}>
           <div className="flex items-center space-x-2"><span className="text-lg">{nodeType.icon}</span><span className="text-sm font-medium truncate max-w-24">{node.data.label}</span></div>
           <button onClick={(e) => { e.stopPropagation(); deleteNode(node.id) }} className="text-white hover:text-red-200 ml-2 opacity-70 hover:opacity-100 transition-opacity"><Trash2 className="h-3 w-3" /></button>
@@ -161,7 +177,7 @@ const NodeEditor = () => {
           {nodeType.outputs.map((outputName, index) => (
             <div key={`output-${index}`} className="flex items-center justify-end">
               <span className="text-xs text-gray-600 font-medium mr-2">{outputName}</span>
-              <div className="port w-4 h-4 rounded-full cursor-pointer transition-all duration-200 bg-gray-400 hover:bg-blue-500" onMouseDown={(e) => handlePortMouseDown(e, node.id, index, true)} title={`出力: ${outputName}`} />
+              <div className={`port w-4 h-4 rounded-full cursor-pointer transition-all duration-200 ${isConnecting && connectionStart?.nodeId === node.id && connectionStart?.portIndex === index ? 'bg-blue-600 ring-2 ring-blue-400' : 'bg-gray-400 hover:bg-blue-500'}`} onMouseDown={(e) => handlePortMouseDown(e, node.id, index, true)} title={`出力: ${outputName}`} />
             </div>
           ))}
         </div>
@@ -177,9 +193,20 @@ const NodeEditor = () => {
 
       const nodeWidth = 160;
       const fromX = fromNode.position.x + nodeWidth;
-      const fromY = fromNode.position.y + 60 + (conn.from.portIndex * 25);
+      const fromNodeType = nodeTypes[fromNode.type];
+
+      const headerHeight = 42;
+      const portSlotHeight = 26;
+      const previewHeight = 42;
+      const bodyTopPadding = 12;
+
+      const inputsHeight = fromNodeType.inputs.length * portSlotHeight;
+      const fromYOffset = headerHeight + bodyTopPadding + inputsHeight + previewHeight;
+
+      const fromY = fromNode.position.y + fromYOffset + (conn.from.portIndex * portSlotHeight);
+
       const toX = toNode.position.x;
-      const toY = toNode.position.y + 60 + (conn.to.portIndex * 25);
+      const toY = toNode.position.y + headerHeight + bodyTopPadding + (conn.to.portIndex * portSlotHeight);
 
       const isLoop = fromNode.id === toNode.id;
       const pathData = isLoop ? `M ${fromX} ${fromY} C ${fromX + 60} ${fromY - 60}, ${toX - 60} ${toY - 60}, ${toX} ${toY}` : `M ${fromX} ${fromY} C ${fromX + Math.abs(toX - fromX) * 0.4} ${fromY}, ${toX - Math.abs(toX - fromX) * 0.4} ${toY}, ${toX} ${toY}`;
