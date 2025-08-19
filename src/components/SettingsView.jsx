@@ -195,7 +195,9 @@ const SettingsView = () => {
 
           {/* 最大トークン数 */}
           <div className="space-y-2">
-            <Label htmlFor="maxTokens">最大トークン数</Label>
+            <Label htmlFor="maxTokens">
+              {settings.model?.startsWith('gpt-5') ? '最大補完トークン数' : '最大トークン数'}
+            </Label>
             <Input
               id="maxTokens"
               type="number"
