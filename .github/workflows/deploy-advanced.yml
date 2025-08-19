@@ -1,0 +1,116 @@
+name: Build and Deploy to GitHub Pages (Advanced)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    types: [ closed ]
+
+# GitHub Pagesへのデプロイに必要な権限を設定
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時実行を制限（複数のデプロイが同時に実行されないようにする）
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # ビルドジョブ
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # 全履歴を取得（バージョン情報などに使用可能）
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'  # Node.jsのキャッシュも有効化
+        
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
+        
+    - name: Get pnpm store directory
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        
+    - name: Setup pnpm cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-store-
+          
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+      
+    - name: Run linter
+      run: pnpm run lint
+      continue-on-error: true  # リンターエラーでもビルドを継続
+      
+    - name: Run type check
+      run: pnpm run typecheck
+      continue-on-error: true  # 型チェックエラーでもビルドを継続
+      
+    - name: Run tests
+      run: pnpm run test
+      continue-on-error: true  # テストエラーでもビルドを継続
+      
+    - name: Build project
+      run: pnpm run build
+      env:
+        NODE_ENV: production
+        
+    - name: Optimize build output
+      run: |
+        # ビルド出力のサイズを確認
+        du -sh dist/
+        # 不要なファイルを削除（もしあれば）
+        find dist/ -name "*.map" -delete || true
+        
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+      
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: './dist'
+
+  # デプロイジョブ（プルリクエストがマージされた場合のみ実行）
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
+      
+    - name: Post deployment notification
+      if: success()
+      run: |
+        echo "🚀 Deployment successful!"
+        echo "📄 Site URL: ${{ steps.deployment.outputs.page_url }}"
+        
+    - name: Post deployment failure notification
+      if: failure()
+      run: |
+        echo "❌ Deployment failed!"
+        echo "Please check the logs for more information."
+
