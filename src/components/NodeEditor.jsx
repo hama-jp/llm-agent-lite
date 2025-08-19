@@ -41,8 +41,8 @@ const NodeEditor = () => {
   }, [selectedConnection])
 
   const nodeTypes = {
-    input: { name: '入力', icon: '📥', color: 'bg-gradient-to-br from-orange-400 to-orange-600', borderColor: 'border-orange-300', textColor: 'text-white', inputs: [], outputs: ['output'], defaultData: { value: '', placeholder: '入力値を設定してください' } },
-    llm: { name: 'LLM生成', icon: '🤖', color: 'bg-gradient-to-br from-blue-400 to-blue-600', borderColor: 'border-blue-300', textColor: 'text-white', inputs: ['input'], outputs: ['output'], defaultData: { prompt: 'あなたは優秀なアシスタントです。以下の入力に対して適切に回答してください。\n\n入力: {{input}}', temperature: 0.7, model: 'default' } },
+    input: { name: '入力', icon: '📥', color: 'bg-gradient-to-br from-orange-400 to-orange-600', borderColor: 'border-orange-300', textColor: 'text-white', inputs: [], outputs: ['output'], defaultData: { value: '' } },
+    llm: { name: 'LLM生成', icon: '🤖', color: 'bg-gradient-to-br from-blue-400 to-blue-600', borderColor: 'border-blue-300', textColor: 'text-white', inputs: ['input'], outputs: ['output'], defaultData: { prompt: 'あなたは優秀なアシスタントです。以下の入力に対して適切に回答してください。\n\n入力: {{input}}', temperature: 0.7, model: 'gpt-5-nano' } },
     if: { name: 'If条件分岐', icon: '🔀', color: 'bg-gradient-to-br from-pink-400 to-pink-600', borderColor: 'border-pink-300', textColor: 'text-white', inputs: ['input'], outputs: ['true', 'false'], defaultData: { conditionType: 'llm', condition: '入力が肯定的な内容かどうか判断してください', variable: '', operator: '==', value: '' } },
     while: { name: 'While繰り返し', icon: '🔄', color: 'bg-gradient-to-br from-purple-400 to-purple-600', borderColor: 'border-purple-300', textColor: 'text-white', inputs: ['input', 'loop'], outputs: ['output', 'loop'], defaultData: { conditionType: 'variable', condition: '', variable: 'counter', operator: '<', value: '10', maxIterations: 100 } },
     output: { name: '出力', icon: '📤', color: 'bg-gradient-to-br from-green-400 to-green-600', borderColor: 'border-green-300', textColor: 'text-white', inputs: ['input'], outputs: [], defaultData: { format: 'text', title: '結果', result: '' } }
@@ -77,17 +77,23 @@ const NodeEditor = () => {
   };
 
   const updateNodeData = (nodeId, data) => {
-    const newNodes = nodes.map(node => {
-      if (node.id === nodeId) {
-        return { ...node, data: { ...node.data, ...data } };
-      }
-      return node;
+    let newSelectedNode = null;
+    setNodes(prev => {
+      const newNodes = prev.map(node => {
+        if (node.id === nodeId) {
+          const updatedNode = { ...node, data: { ...node.data, ...data } };
+          if (selectedNode && selectedNode.id === nodeId) {
+            newSelectedNode = updatedNode;
+          }
+          return updatedNode;
+        }
+        return node;
+      });
+      return newNodes;
     });
-    setNodes(newNodes);
 
-    if (selectedNode && selectedNode.id === nodeId) {
-      const updatedNode = newNodes.find(n => n.id === nodeId);
-      setSelectedNode(updatedNode);
+    if (newSelectedNode) {
+      setSelectedNode(newSelectedNode);
     }
   };
 
@@ -161,12 +167,21 @@ const NodeEditor = () => {
     setDraggingLine(null);
   };
 
+  const processExecutionCompletion = () => {
+    const finalContext = nodeExecutionService.executionContext;
+    setNodes(prevNodes => prevNodes.map(node => {
+      if (node.type === 'output' && finalContext[node.id] !== undefined) {
+        return { ...node, data: { ...node.data, result: finalContext[node.id] } };
+      }
+      return node;
+    }));
+    setDebugLog(nodeExecutionService.getExecutionLog());
+  };
+
   const handleRunAll = async () => {
     if (nodes.length === 0) return alert('実行するノードがありません');
-
     const inputNodes = nodes.filter(n => n.type === 'input');
     const inputData = Object.fromEntries(inputNodes.map(n => [n.id, n.data.value || '']));
-
     const exec = nodeExecutionService.startExecution(nodes, connections, inputData);
     setExecutor(exec);
     setExecutionState({ running: true, currentNodeId: null, executedNodeIds: new Set() });
@@ -182,7 +197,6 @@ const NodeEditor = () => {
           setExecutionState(prev => ({ ...prev, currentNodeId: result.value.currentNodeId, executedNodeIds: new Set(prev.executedNodeIds).add(result.value.currentNodeId) }));
         }
       } while (!result.done);
-
       const finalState = result.value;
       if (finalState.status === 'completed') {
         setExecutionResult({ success: true, variables: finalState.variables });
@@ -193,9 +207,9 @@ const NodeEditor = () => {
       console.error("Workflow execution failed:", error);
       setExecutionResult({ success: false, error: error.message });
     } finally {
+      processExecutionCompletion();
       setExecutionState({ running: false, currentNodeId: null, executedNodeIds: new Set() });
       setExecutor(null);
-      setDebugLog(nodeExecutionService.getExecutionLog());
     }
   };
 
@@ -211,9 +225,7 @@ const NodeEditor = () => {
         alert("ステップ実行を開始します。もう一度「ステップ」を押して最初のノードを実行してください。");
         return;
       }
-
       const result = await currentExecutor.next();
-      
       if (result.done) {
         if (result.value.status === 'completed') {
           alert('ワークフローの実行が完了しました。');
@@ -222,6 +234,7 @@ const NodeEditor = () => {
           alert(`エラーが発生しました: ${result.value.error?.message}`);
           setExecutionResult({ success: false, error: result.value.error?.message });
         }
+        processExecutionCompletion();
         handleResetExecution();
       } else {
         setExecutionState(prev => ({ ...prev, currentNodeId: result.value.currentNodeId, executedNodeIds: new Set(prev.executedNodeIds).add(result.value.currentNodeId) }));
@@ -230,8 +243,6 @@ const NodeEditor = () => {
       console.error("Step forward failed:", error);
       setExecutionResult({ success: false, error: error.message });
       handleResetExecution();
-    } finally {
-      setDebugLog(nodeExecutionService.getExecutionLog());
     }
   };
 
@@ -321,11 +332,9 @@ const NodeEditor = () => {
   const renderNode = (node) => {
     const nodeType = nodeTypes[node.type];
     if (!nodeType) return null;
-    
     const isSelected = selectedNode?.id === node.id;
     const isRunning = executionState.currentNodeId === node.id;
     const isExecuted = executionState.executedNodeIds.has(node.id);
-
     let borderClass = 'border-gray-300';
     if (isRunning) borderClass = 'border-blue-500 ring-4 ring-blue-300';
     else if (isExecuted) borderClass = 'border-green-500';
@@ -345,11 +354,11 @@ const NodeEditor = () => {
             </div>
           ))}
           <div className="text-xs text-gray-700 bg-gray-50 p-2 rounded border">
-            {node.type === 'input' && <div className="truncate">{node.data.value || node.data.placeholder}</div>}
+            {node.type === 'input' && <div className="truncate">{node.data.value || '入力値を設定...'}</div>}
             {node.type === 'llm' && <div className="truncate">プロンプト: {node.data.prompt?.substring(0, 30)}...</div>}
             {node.type === 'if' && <div className="truncate">条件: {node.data.condition?.substring(0, 30)}...</div>}
             {node.type === 'while' && <div className="truncate">繰り返し: {node.data.variable} {node.data.operator} {node.data.value}</div>}
-            {node.type === 'output' && <div className="truncate">形式: {node.data.format}</div>}
+            {node.type === 'output' && <textarea className="w-full h-12 text-xs bg-transparent border-none focus:ring-0" readOnly value={node.data.result || ''} placeholder="実行結果..." />}
           </div>
           {nodeType.outputs.map((outputName, index) => (
             <div key={`output-${index}`} className="flex items-center justify-end">
@@ -367,13 +376,10 @@ const NodeEditor = () => {
       const fromNode = nodes.find(n => n.id === conn.from.nodeId);
       const toNode = nodes.find(n => n.id === conn.to.nodeId);
       if (!fromNode || !toNode) return null;
-
       const fromNodeType = nodeTypes[fromNode.type];
       const nodeWidth = 160;
       const fromX = fromNode.position.x + nodeWidth;
       const toX = toNode.position.x;
-
-      // More precise Y-coordinate calculation
       const headerHeight = 40;
       const portSlotHeight = 24;
       const previewPadding = 8;
@@ -381,25 +387,17 @@ const NodeEditor = () => {
       const bodyV_Padding = 12;
       const margin = 8;
       const previewTotalHeight = previewLineHeight + previewPadding;
-
       const inputsHeight = fromNodeType.inputs.length * portSlotHeight;
       const fromY_outputSectionStart = fromNode.position.y + headerHeight + bodyV_Padding + inputsHeight + margin + previewTotalHeight + margin;
       const fromY = fromY_outputSectionStart + (conn.from.portIndex * portSlotHeight) + (portSlotHeight / 2);
-
       const toY_inputSectionStart = toNode.position.y + headerHeight + bodyV_Padding;
       const toY = toY_inputSectionStart + (conn.to.portIndex * portSlotHeight) + (portSlotHeight / 2);
-
       const isLoop = fromNode.id === toNode.id;
       const pathData = isLoop ? `M ${fromX} ${fromY} C ${fromX + 60} ${fromY - 60}, ${toX - 60} ${toY - 60}, ${toX} ${toY}` : `M ${fromX} ${fromY} C ${fromX + Math.abs(toX - fromX) * 0.4} ${fromY}, ${toX - Math.abs(toX - fromX) * 0.4} ${toY}, ${toX} ${toY}`;
-      
       const fromPortName = nodeTypes[fromNode.type].outputs[conn.from.portIndex];
       let strokeColor = '#3b82f6';
-      if (fromPortName === 'true') strokeColor = '#10b981';
-      else if (fromPortName === 'false') strokeColor = '#ef4444';
-      else if (fromPortName === 'loop') strokeColor = '#8b5cf6';
-
+      if (fromPortName === 'true') strokeColor = '#10b981'; else if (fromPortName === 'false') strokeColor = '#ef4444'; else if (fromPortName === 'loop') strokeColor = '#8b5cf6';
       const isSelected = selectedConnection === conn.id;
-
       return (
         <svg key={conn.id || index} className="absolute z-10" style={{ left: 0, top: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}>
           <defs>
@@ -462,10 +460,47 @@ const NodeEditor = () => {
             <div className="space-y-4">
               <div><label className="block text-sm font-medium mb-1">ノード名</label><input type="text" value={selectedNode.data.label} onChange={(e) => updateNodeData(selectedNode.id, { label: e.target.value })} className="w-full px-3 py-2 border rounded-md" /></div>
               {selectedNode.type === 'input' && ( <><div><label className="block text-sm font-medium mb-1">入力値</label><textarea value={selectedNode.data.value || ''} onChange={(e) => updateNodeData(selectedNode.id, { value: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="実行時の入力値を設定します" /></div></> )}
-              {selectedNode.type === 'llm' && ( <><div><label className="block text-sm font-medium mb-1">プロンプト</label><textarea value={selectedNode.data.prompt || ''} onChange={(e) => updateNodeData(selectedNode.id, { prompt: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={5} placeholder="プロンプトを入力してください" /></div><div><label className="block text-sm font-medium mb-1">Temperature</label><input type="number" value={selectedNode.data.temperature || 0.7} onChange={(e) => updateNodeData(selectedNode.id, { temperature: parseFloat(e.target.value) })} className="w-full px-3 py-2 border rounded-md" min="0" max="2" step="0.1" /></div></> )}
+              {selectedNode.type === 'llm' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">プロンプト</label>
+                    <textarea
+                      value={selectedNode.data.prompt || ''}
+                      onChange={(e) => updateNodeData(selectedNode.id, { prompt: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md"
+                      rows={5}
+                      placeholder="プロンプトを入力してください"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Temperature</label>
+                    <input
+                      type="number"
+                      value={selectedNode.data.temperature || 0.7}
+                      onChange={(e) => updateNodeData(selectedNode.id, { temperature: parseFloat(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-md"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Model</label>
+                    <select
+                      value={selectedNode.data.model || 'gpt-5-nano'}
+                      onChange={(e) => updateNodeData(selectedNode.id, { model: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md"
+                    >
+                      <option value="gpt-5">gpt-5</option>
+                      <option value="gpt-5-mini">gpt-5-mini</option>
+                      <option value="gpt-5-nano">gpt-5-nano</option>
+                    </select>
+                  </div>
+                </>
+              )}
               {selectedNode.type === 'if' && ( <><div><label className="block text-sm font-medium mb-1">条件タイプ</label><select value={selectedNode.data.conditionType || 'llm'} onChange={(e) => updateNodeData(selectedNode.id, { conditionType: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="llm">LLM判断</option><option value="variable">変数比較</option></select></div>{selectedNode.data.conditionType === 'llm' ? (<div><label className="block text-sm font-medium mb-1">判断条件</label><textarea value={selectedNode.data.condition || ''} onChange={(e) => updateNodeData(selectedNode.id, { condition: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="LLMに判断させる条件を入力" /></div>) : (<><div><label className="block text-sm font-medium mb-1">変数名</label><input type="text" value={selectedNode.data.variable || ''} onChange={(e) => updateNodeData(selectedNode.id, { variable: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する変数名" /></div><div><label className="block text-sm font-medium mb-1">演算子</label><select value={selectedNode.data.operator || '=='} onChange={(e) => updateNodeData(selectedNode.id, { operator: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="==">==(等しい)</option><option value="!=">!=(等しくない)</option><option value="<">&lt;(より小さい)</option><option value="<=">&lt;=(以下)</option><option value=">">&gt;(より大きい)</option><option value=">=">&gt;=(以上)</option></select></div><div><label className="block text-sm font-medium mb-1">比較値</label><input type="text" value={selectedNode.data.value || ''} onChange={(e) => updateNodeData(selectedNode.id, { value: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する値" /></div></>)}</> )}
               {selectedNode.type === 'while' && ( <><div><label className="block text-sm font-medium mb-1">条件タイプ</label><select value={selectedNode.data.conditionType || 'variable'} onChange={(e) => updateNodeData(selectedNode.id, { conditionType: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="variable">変数比較</option><option value="llm">LLM判断</option></select></div>{selectedNode.data.conditionType === 'variable' ? (<><div><label className="block text-sm font-medium mb-1">変数名</label><input type="text" value={selectedNode.data.variable || ''} onChange={(e) => updateNodeData(selectedNode.id, { variable: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する変数名" /></div><div><label className="block text-sm font-medium mb-1">演算子</label><select value={selectedNode.data.operator || '<'} onChange={(e) => updateNodeData(selectedNode.id, { operator: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="==">==(等しい)</option><option value="!=">!=(等しくない)</option><option value="<">&lt;(より小さい)</option><option value="<=">&lt;=(以下)</option><option value=">">&gt;(より大きい)</option><option value=">=">&gt;=(以上)</option></select></div><div><label className="block text-sm font-medium mb-1">比較値</label><input type="text" value={selectedNode.data.value || ''} onChange={(e) => updateNodeData(selectedNode.id, { value: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する値" /></div></>) : (<div><label className="block text-sm font-medium mb-1">継続条件</label><textarea value={selectedNode.data.condition || ''} onChange={(e) => updateNodeData(selectedNode.id, { condition: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="繰り返しを継続する条件を入力" /></div>)}<div><label className="block text-sm font-medium mb-1">最大繰り返し回数</label><input type="number" value={selectedNode.data.maxIterations || 100} onChange={(e) => updateNodeData(selectedNode.id, { maxIterations: parseInt(e.target.value) })} className="w-full px-3 py-2 border rounded-md" min="1" max="1000" /></div></> )}
-              {selectedNode.type === 'output' && ( <div><label className="block text-sm font-medium mb-1">出力形式</label><select value={selectedNode.data.format || 'text'} onChange={(e) => updateNodeData(selectedNode.id, { format: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="text">テキスト</option><option value="json">JSON</option><option value="markdown">Markdown</option></select></div> )}
+              {selectedNode.type === 'output' && ( <><div><label className="block text-sm font-medium mb-1">出力形式</label><select value={selectedNode.data.format || 'text'} onChange={(e) => updateNodeData(selectedNode.id, { format: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="text">テキスト</option><option value="json">JSON</option><option value="markdown">Markdown</option></select></div><div><label className="block text-sm font-medium mb-1">実行結果</label><textarea value={selectedNode.data.result || ''} readOnly className="w-full px-3 py-2 border rounded-md bg-gray-100" rows={5} /></div></> )}
             </div>
           </div>
         ) : (
