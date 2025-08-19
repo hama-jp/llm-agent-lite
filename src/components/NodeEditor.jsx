@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.j
 import { Alert, AlertDescription } from '@/components/ui/alert.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
 import nodeExecutionService from '../services/nodeExecutionService.js'
+import llmService from '../services/llmService.js'
 
 const NodeEditor = () => {
   const [nodes, setNodes] = useState([])
@@ -43,7 +44,7 @@ const NodeEditor = () => {
 
   const nodeTypes = {
     input: { name: '入力', icon: '📥', color: 'bg-gradient-to-br from-orange-400 to-orange-600', borderColor: 'border-orange-300', textColor: 'text-white', inputs: [], outputs: ['output'], defaultData: { value: '' } },
-    llm: { name: 'LLM生成', icon: '🤖', color: 'bg-gradient-to-br from-blue-400 to-blue-600', borderColor: 'border-blue-300', textColor: 'text-white', inputs: ['input'], outputs: ['output'], defaultData: { prompt: 'あなたは優秀なアシスタントです。以下の入力に対して適切に回答してください。\n\n入力: {{input}}', temperature: 0.7, model: 'gpt-5-nano' } },
+    llm: { name: 'LLM生成', icon: '🤖', color: 'bg-gradient-to-br from-blue-400 to-blue-600', borderColor: 'border-blue-300', textColor: 'text-white', inputs: ['input'], outputs: ['output'], defaultData: { prompt: 'あなたは優秀なアシスタントです。以下の入力に対して適切に回答してください。\n\n入力: {{input}}', temperature: 1.0, model: 'gpt-5-nano' } },
     if: { name: 'If条件分岐', icon: '🔀', color: 'bg-gradient-to-br from-pink-400 to-pink-600', borderColor: 'border-pink-300', textColor: 'text-white', inputs: ['input'], outputs: ['true', 'false'], defaultData: { conditionType: 'llm', condition: '入力が肯定的な内容かどうか判断してください', variable: '', operator: '==', value: '' } },
     while: { name: 'While繰り返し', icon: '🔄', color: 'bg-gradient-to-br from-purple-400 to-purple-600', borderColor: 'border-purple-300', textColor: 'text-white', inputs: ['input', 'loop'], outputs: ['output', 'loop'], defaultData: { conditionType: 'variable', condition: '', variable: 'counter', operator: '<', value: '10', maxIterations: 100 } },
     output: { name: '出力', icon: '📤', color: 'bg-gradient-to-br from-green-400 to-green-600', borderColor: 'border-green-300', textColor: 'text-white', inputs: ['input'], outputs: [], defaultData: { format: 'text', title: '結果', result: '' } }
@@ -69,7 +70,20 @@ const NodeEditor = () => {
   const addNode = (type, x = null, y = null) => {
     const nodeType = nodeTypes[type];
     if (!nodeType) return;
-    const newNode = { id: `${type}_${Date.now()}`, type, position: { x: x !== null ? x : 100 + Math.random() * 200, y: y !== null ? y : 100 + Math.random() * 200 }, data: { label: nodeType.name, ...nodeType.defaultData } };
+
+    let defaultData = { ...nodeType.defaultData };
+    if (type === 'llm') {
+      const currentSettings = llmService.loadSettings();
+      defaultData.model = currentSettings.model;
+      defaultData.temperature = currentSettings.temperature;
+    }
+
+    const newNode = {
+      id: `${type}_${Date.now()}`,
+      type,
+      position: { x: x !== null ? x : 100 + Math.random() * 200, y: y !== null ? y : 100 + Math.random() * 200 },
+      data: { label: nodeType.name, ...defaultData }
+    };
     setNodes(prev => [...prev, newNode]);
   };
 
