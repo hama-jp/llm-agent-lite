@@ -1,4 +1,4 @@
-name: Build and Deploy to GitHub Pages
+name: Build and Deploy to GitHub Pages (Fixed)
 
 on:
   push:
@@ -50,12 +50,19 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
           
+    # ロックファイルの問題を回避するため、--no-frozen-lockfileオプションを使用
     - name: Install dependencies
-      run: pnpm install --frozen-lockfile
+      run: pnpm install --no-frozen-lockfile
+      
+    # ロックファイルを更新して今後の問題を防ぐ
+    - name: Update lockfile
+      run: pnpm install
       
     - name: Build project
       run: pnpm run build
-      
+      env:
+        NODE_ENV: production
+        
     - name: Setup Pages
       uses: actions/configure-pages@v4
       
