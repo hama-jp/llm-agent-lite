@@ -16,6 +16,17 @@ vi.mock('../services/llmService.js', () => ({
   }
 }));
 
+// Helper function to set input value and dispatch events
+function setReactInputValue(element, value) {
+  const { set: valueSetter } = Object.getOwnPropertyDescriptor(
+    element.constructor.prototype,
+    'value'
+  );
+  valueSetter.call(element, value);
+  const event = new Event('input', { bubbles: true });
+  element.dispatchEvent(event);
+}
+
 describe('NodeEditor', () => {
   beforeAll(() => {
     // Mock ResizeObserver
@@ -41,17 +52,6 @@ describe('NodeEditor', () => {
     }
   });
 
-// Helper function to set input value and dispatch events
-function setReactInputValue(input, value) {
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype,
-        'value'
-    ).set;
-    nativeInputValueSetter.call(input, value);
-    const event = new Event('input', { bubbles: true });
-    input.dispatchEvent(event);
-}
-
   let container;
   let root;
 
@@ -71,73 +71,71 @@ function setReactInputValue(input, value) {
     vi.useRealTimers();
   });
 
-  it('should debounce node data updates on input change', async () => {
+  it('should update form immediately and debounce global state update', async () => {
     act(() => {
       root.render(<NodeEditor />);
     });
 
-    // 1. Add an 'input' node
+    // Add an 'llm' node to have multiple fields
     act(() => {
       const canvas = container.querySelector('.cursor-crosshair');
-      const event = new MouseEvent('contextmenu', { bubbles: true, clientX: 200, clientY: 200 });
-      canvas.dispatchEvent(event);
+      canvas.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 200, clientY: 200 }));
     });
+    await act(async () => { vi.runAllTicks(); });
+    const addButton = Array.from(document.querySelectorAll('button')).find(btn => btn.textContent.includes('LLM生成'));
+    act(() => { addButton.click(); });
 
-    await act(async () => {
-      vi.runAllTicks();
-    });
-
-    const addInputButton = Array.from(document.querySelectorAll('button')).find(btn => btn.textContent.includes('入力'));
-    expect(addInputButton).toBeDefined();
-
-    act(() => {
-      addInputButton.click();
-    });
-
-    // 2. Select the node
+    // Select the node
     let nodeElement;
     await act(async () => {
       vi.runAllTicks();
       nodeElement = container.querySelector('.cursor-move');
     });
-    expect(nodeElement).toBeDefined();
+    act(() => { nodeElement.click(); });
 
-    act(() => {
-      nodeElement.click();
-    });
-
-    // 3. Find the input field for the node's label
-    let labelInput;
+    // Find input fields
+    let labelInput, promptTextarea;
     await act(async () => {
       vi.runAllTicks();
       labelInput = container.querySelector('input[type="text"]');
+      promptTextarea = container.querySelector('textarea');
     });
-    expect(labelInput).toBeDefined();
 
     const initialLabel = labelInput.value;
-    const newLabel = 'New Test Label';
+    const newLabel = 'New Label';
+    const newPrompt = 'New Prompt';
 
-    // 4. Simulate typing
+    // Simulate typing in label
     act(() => {
         setReactInputValue(labelInput, newLabel);
     });
 
-    // 5. Check immediate UI update
+    // Check immediate UI update for label
     expect(labelInput.value).toBe(newLabel);
-
-    // The node label in the canvas should not have updated yet
+    // Global state should not have updated yet
     let nodeLabelInCanvas = nodeElement.querySelector('.truncate');
     expect(nodeLabelInCanvas.textContent).toBe(initialLabel);
 
-    // 6. Advance timers
+    // Simulate typing in prompt quickly after
+    act(() => {
+        setReactInputValue(promptTextarea, newPrompt);
+    });
+
+    // Check immediate UI update for prompt
+    expect(promptTextarea.value).toBe(newPrompt);
+
+    // Advance timers
     await act(async () => {
       vi.advanceTimersByTime(600); // Past the 500ms debounce
       await vi.runAllTicks();
     });
 
-    // 7. Check if the global state has been updated
+    // Check if the global state has been updated with both changes
     const updatedNodeElement = container.querySelector('.cursor-move');
     nodeLabelInCanvas = updatedNodeElement.querySelector('.truncate');
     expect(nodeLabelInCanvas.textContent).toBe(newLabel);
+
+    const nodePromptInCanvas = updatedNodeElement.querySelectorAll('.truncate')[1];
+    expect(nodePromptInCanvas.textContent).toContain(newPrompt.substring(0, 30));
   });
 });
