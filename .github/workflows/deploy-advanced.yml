@@ -27,115 +27,39 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # 全履歴を取得（バージョン情報などに使用可能）
-      
+        fetch-depth: 0
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 8
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        cache: 'npm'  # Node.jsのキャッシュも有効化
-        
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v2
-      with:
-        version: 8
-        
-    - name: Get pnpm store directory
-      shell: bash
-      run: |
-        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-        
-    - name: Setup pnpm cache
-      uses: actions/cache@v3
-      with:
-        path: ${{ env.STORE_PATH }}
-        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-        restore-keys: |
-          ${{ runner.os }}-pnpm-store-
-          
-    # ロックファイルの問題を回避するため、フォールバック機能付きインストール
-    - name: Install dependencies (with fallback)
-      run: |
-        echo "Attempting to install dependencies..."
-        if pnpm install --frozen-lockfile 2>/dev/null; then
-          echo "✅ Installed with frozen lockfile"
-        elif pnpm install --no-frozen-lockfile; then
-          echo "⚠️ Installed without frozen lockfile (lockfile updated)"
-        else
-          echo "❌ pnpm failed, falling back to npm"
-          rm -f pnpm-lock.yaml
-          npm ci || npm install
-        fi
-        
-    - name: Verify installation
-      run: |
-        if command -v pnpm >/dev/null 2>&1 && [ -f pnpm-lock.yaml ]; then
-          echo "Using pnpm"
-          pnpm list --depth=0 || true
-        else
-          echo "Using npm"
-          npm list --depth=0 || true
-        fi
-        
+        cache: 'pnpm'
+
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+
     - name: Run linter
-      run: |
-        if command -v pnpm >/dev/null 2>&1 && [ -f pnpm-lock.yaml ]; then
-          pnpm run lint || echo "⚠️ Linting failed or not configured"
-        else
-          npm run lint || echo "⚠️ Linting failed or not configured"
-        fi
-      continue-on-error: true  # リンターエラーでもビルドを継続
-      
+      run: pnpm run lint
+      continue-on-error: true
+
     - name: Run type check
-      run: |
-        if command -v pnpm >/dev/null 2>&1 && [ -f pnpm-lock.yaml ]; then
-          pnpm run typecheck || echo "⚠️ Type checking failed or not configured"
-        else
-          npm run typecheck || echo "⚠️ Type checking failed or not configured"
-        fi
-      continue-on-error: true  # 型チェックエラーでもビルドを継続
-      
+      run: pnpm run typecheck
+      continue-on-error: true
+
     - name: Run tests
-      run: |
-        if command -v pnpm >/dev/null 2>&1 && [ -f pnpm-lock.yaml ]; then
-          pnpm run test || echo "⚠️ Tests failed or not configured"
-        else
-          npm run test || echo "⚠️ Tests failed or not configured"
-        fi
-      continue-on-error: true  # テストエラーでもビルドを継続
-      
+      run: pnpm run test
+      continue-on-error: true
+
     - name: Build project
-      run: |
-        echo "Building project..."
-        if command -v pnpm >/dev/null 2>&1 && [ -f pnpm-lock.yaml ]; then
-          pnpm run build
-        else
-          npm run build
-        fi
+      run: pnpm run build
       env:
         NODE_ENV: production
-        
-    - name: Optimize build output
-      run: |
-        # ビルド出力のサイズを確認
-        echo "📊 Build output size:"
-        du -sh dist/ || echo "dist folder not found"
-        
-        # ビルド内容を確認
-        echo "📁 Build contents:"
-        ls -la dist/ || echo "dist folder not found"
-        
-        # 不要なファイルを削除（もしあれば）
-        find dist/ -name "*.map" -delete 2>/dev/null || true
-        echo "🧹 Cleaned up source maps"
-        
-        # 最終サイズを表示
-        echo "📊 Final build size:"
-        du -sh dist/ || echo "dist folder not found"
-        
-    - name: Setup Pages
-      uses: actions/configure-pages@v4
-      
+
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
