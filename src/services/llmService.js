@@ -39,7 +39,8 @@ class LLMService {
 
   // メッセージ送信
   async sendMessage(message, options = {}) {
-    const { provider, apiKey, baseUrl, model, temperature, maxTokens } = this.settings
+    const currentSettings = { ...this.settings, ...options };
+    const { provider, apiKey, baseUrl, model, temperature, maxTokens } = currentSettings
 
     if (!apiKey) {
       throw new Error('APIキーが設定されていません。設定画面でAPIキーを入力してください。')
