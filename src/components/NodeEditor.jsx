@@ -33,6 +33,8 @@ const NodeEditor = () => {
   const canvasRef = useRef(null)
   const nodeRefs = useRef(new Map())
   const portRefs = useRef(new Map())
+  const editingNodeRef = useRef();
+  editingNodeRef.current = editingNode;
 
   useEffect(() => {
     if (selectedNode) {
@@ -162,22 +164,23 @@ const NodeEditor = () => {
     );
   }, []);
 
-  const debouncedUpdateNodeData = useMemo(
-    () => debounce((nodeId, data) => {
-      updateNodeData(nodeId, data);
+  const debouncedUpdateGlobalState = useMemo(
+    () => debounce(() => {
+      if (!editingNodeRef.current) return;
+      updateNodeData(editingNodeRef.current.id, editingNodeRef.current.data);
     }, 500),
     [updateNodeData]
   );
 
-  const handleDataChange = (data) => {
+  const handleDataChange = (partialData) => {
     if (!editingNode) return;
 
-    const updatedNode = { ...editingNode, data: { ...editingNode.data, ...data } };
+    const newEditingNodeData = { ...editingNode.data, ...partialData };
+    const updatedNode = { ...editingNode, data: newEditingNodeData };
     setEditingNode(updatedNode);
 
-    debouncedUpdateNodeData(editingNode.id, data);
+    debouncedUpdateGlobalState();
   };
-
 
   const handleNodeMouseDown = (e, node) => {
     if (e.target.classList.contains('port')) return;
