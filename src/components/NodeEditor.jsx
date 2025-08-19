@@ -45,7 +45,7 @@ const NodeEditor = () => {
     llm: { name: 'LLM生成', icon: '🤖', color: 'bg-gradient-to-br from-blue-400 to-blue-600', borderColor: 'border-blue-300', textColor: 'text-white', inputs: ['input'], outputs: ['output'], defaultData: { prompt: 'あなたは優秀なアシスタントです。以下の入力に対して適切に回答してください。\n\n入力: {{input}}', temperature: 0.7, model: 'default' } },
     if: { name: 'If条件分岐', icon: '🔀', color: 'bg-gradient-to-br from-pink-400 to-pink-600', borderColor: 'border-pink-300', textColor: 'text-white', inputs: ['input'], outputs: ['true', 'false'], defaultData: { conditionType: 'llm', condition: '入力が肯定的な内容かどうか判断してください', variable: '', operator: '==', value: '' } },
     while: { name: 'While繰り返し', icon: '🔄', color: 'bg-gradient-to-br from-purple-400 to-purple-600', borderColor: 'border-purple-300', textColor: 'text-white', inputs: ['input', 'loop'], outputs: ['output', 'loop'], defaultData: { conditionType: 'variable', condition: '', variable: 'counter', operator: '<', value: '10', maxIterations: 100 } },
-    output: { name: '出力', icon: '📤', color: 'bg-gradient-to-br from-green-400 to-green-600', borderColor: 'border-green-300', textColor: 'text-white', inputs: ['input'], outputs: [], defaultData: { format: 'text', title: '結果' } }
+    output: { name: '出力', icon: '📤', color: 'bg-gradient-to-br from-green-400 to-green-600', borderColor: 'border-green-300', textColor: 'text-white', inputs: ['input'], outputs: [], defaultData: { format: 'text', title: '結果', result: '' } }
   }
 
   const handleCanvasRightClick = (e) => {
@@ -368,23 +368,26 @@ const NodeEditor = () => {
       const toNode = nodes.find(n => n.id === conn.to.nodeId);
       if (!fromNode || !toNode) return null;
 
+      const fromNodeType = nodeTypes[fromNode.type];
       const nodeWidth = 160;
       const fromX = fromNode.position.x + nodeWidth;
-      const fromNodeType = nodeTypes[fromNode.type];
+      const toX = toNode.position.x;
 
+      // More precise Y-coordinate calculation
       const headerHeight = 40;
       const portSlotHeight = 24;
-      const previewHeight = 28;
-      const bodyPadding = 12;
+      const previewPadding = 8;
+      const previewLineHeight = 14;
+      const bodyV_Padding = 12;
       const margin = 8;
+      const previewTotalHeight = previewLineHeight + previewPadding;
 
       const inputsHeight = fromNodeType.inputs.length * portSlotHeight;
-      const fromYOffset = headerHeight + bodyPadding + inputsHeight + margin + previewHeight + margin;
+      const fromY_outputSectionStart = fromNode.position.y + headerHeight + bodyV_Padding + inputsHeight + margin + previewTotalHeight + margin;
+      const fromY = fromY_outputSectionStart + (conn.from.portIndex * portSlotHeight) + (portSlotHeight / 2);
 
-      const fromY = fromNode.position.y + fromYOffset + (conn.from.portIndex * portSlotHeight);
-
-      const toX = toNode.position.x;
-      const toY = toNode.position.y + headerHeight + bodyPadding + (conn.to.portIndex * portSlotHeight);
+      const toY_inputSectionStart = toNode.position.y + headerHeight + bodyV_Padding;
+      const toY = toY_inputSectionStart + (conn.to.portIndex * portSlotHeight) + (portSlotHeight / 2);
 
       const isLoop = fromNode.id === toNode.id;
       const pathData = isLoop ? `M ${fromX} ${fromY} C ${fromX + 60} ${fromY - 60}, ${toX - 60} ${toY - 60}, ${toX} ${toY}` : `M ${fromX} ${fromY} C ${fromX + Math.abs(toX - fromX) * 0.4} ${fromY}, ${toX - Math.abs(toX - fromX) * 0.4} ${toY}, ${toX} ${toY}`;
