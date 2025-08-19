@@ -241,7 +241,7 @@ class NodeExecutionService {
       finalPrompt = finalPrompt.replace(new RegExp(`{{${key}}}`, 'g'), value)
     })
     try {
-      const response = await llmService.generateText(finalPrompt, { temperature })
+      const response = await llmService.sendMessage(finalPrompt, { temperature })
       return response
     } catch (error) {
       throw new Error(`LLM実行エラー: ${error.message}`)

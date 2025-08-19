@@ -5,14 +5,15 @@ import llmService from './llmService'
 // Mock the llmService
 vi.mock('./llmService', () => ({
   default: {
-    generateText: vi.fn(),
+    sendMessage: vi.fn(),
+
   },
 }))
 
 describe('NodeExecutionService', () => {
   beforeEach(() => {
     // Reset mocks before each test
-    llmService.generateText.mockClear()
+    llmService.sendMessage.mockClear()
   })
 
   it('should execute a simple Input -> LLM -> Output workflow correctly', async () => {
@@ -30,7 +31,9 @@ describe('NodeExecutionService', () => {
 
     // 2. Mock the LLM response
     const mockLLMResponse = 'Bonjour le monde'
-    llmService.generateText.mockResolvedValue(mockLLMResponse)
+
+    llmService.sendMessage.mockResolvedValue(mockLLMResponse)
+
 
     // 3. Start the execution
     const executor = nodeExecutionService.startExecution(nodes, connections, inputData)
@@ -50,7 +53,8 @@ describe('NodeExecutionService', () => {
     expect(finalOutput).toBe(mockLLMResponse)
 
     // Check if LLM service was called correctly
-    expect(llmService.generateText).toHaveBeenCalledTimes(1)
-    expect(llmService.generateText).toHaveBeenCalledWith('Translate to French: Hello World', expect.any(Object))
+    expect(llmService.sendMessage).toHaveBeenCalledTimes(1)
+    expect(llmService.sendMessage).toHaveBeenCalledWith('Translate to French: Hello World', expect.any(Object))
+
   })
 })
