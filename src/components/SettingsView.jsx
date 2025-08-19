@@ -13,7 +13,7 @@ const SettingsView = () => {
     provider: 'openai',
     apiKey: '',
     baseUrl: '',
-    model: 'gpt-3.5-turbo',
+    model: 'gpt-5-nano',
     temperature: 0.7,
     maxTokens: 2048
   })
@@ -81,7 +81,7 @@ const SettingsView = () => {
   ]
 
   const modelOptions = {
-    openai: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini'],
+    openai: ['gpt-5', 'gpt-5-mini', 'gpt-5-nano'],
     anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-haiku-20240307', 'claude-3-opus-20240229'],
     local: ['llama2', 'codellama', 'mistral', 'custom-model'],
     custom: ['custom-model']
