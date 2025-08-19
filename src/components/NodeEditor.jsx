@@ -530,18 +530,29 @@ const NodeEditor = () => {
       const fromPortIndex = conn.from.portIndex;
       const fromPortName = fromNodeType.outputs[fromPortIndex];
       
-      const fromX = fromNode.x + nodeWidth; // ノード幅の右端
-      const fromY = fromNode.y + 60 + (fromPortIndex * (portSize + 5));
+      const fromX = fromNode.position.x + nodeWidth; // ノード幅の右端
+      const fromY = fromNode.position.y + 60 + (fromPortIndex * (portSize + 5));
       
       // 入力ポートの位置計算
       const toNodeType = nodeTypes[toNode.type];
       const toPortIndex = conn.to.portIndex;
       const toPortName = toNodeType.inputs[toPortIndex];
       
-      const toX = toNode.x; // ノードの左端
-      const toY = toNode.y + 60 + (toPortIndex * (portSize + 5));
+      const toX = toNode.position.x; // ノードの左端
+      const toY = toNode.position.y + 60 + (toPortIndex * (portSize + 5));
 
-      const controlOffset = Math.abs(toX - fromX) * 0.3;
+      const isLoop = fromNode.id === toNode.id;
+      let pathData;
+
+      if (isLoop) {
+        // ループ接続の場合、上向きのアーチを描画
+        const loopHeight = 60;
+        pathData = `M ${fromX} ${fromY} C ${fromX + loopHeight} ${fromY - loopHeight}, ${toX - loopHeight} ${toY - loopHeight}, ${toX} ${toY}`;
+      } else {
+        // 通常の接続
+        const controlOffset = Math.abs(toX - fromX) * 0.4;
+        pathData = `M ${fromX} ${fromY} C ${fromX + controlOffset} ${fromY}, ${toX - controlOffset} ${toY}, ${toX} ${toY}`;
+      }
 
       // 接続線の色を決定（ポートタイプに基づく）
       let strokeColor = '#3b82f6'; // デフォルト青
@@ -587,7 +598,7 @@ const NodeEditor = () => {
             </marker>
           </defs>
           <path
-            d={`M ${fromX} ${fromY} C ${fromX + controlOffset} ${fromY} ${toX - controlOffset} ${toY} ${toX} ${toY}`}
+            d={pathData}
             stroke={`url(#gradient-${index})`}
             strokeWidth="3"
             fill="none"
@@ -600,7 +611,7 @@ const NodeEditor = () => {
             <animateMotion
               dur="2s"
               repeatCount="indefinite"
-              path={`M ${fromX} ${fromY} C ${fromX + controlOffset} ${fromY} ${toX - controlOffset} ${toY} ${toX} ${toY}`}
+              path={pathData}
             />
           </circle>
           {/* ポートラベル表示 */}
