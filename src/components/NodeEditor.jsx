@@ -55,7 +55,6 @@ const NodeEditor = () => {
   const addNodeFromContext = (nodeType) => { if (contextMenu) { addNode(nodeType, contextMenu.canvasX, contextMenu.canvasY); closeContextMenu() } }
   const addNode = (type, x = null, y = null) => { const nodeType = nodeTypes[type]; if (!nodeType) return; const newNode = { id: `${type}_${Date.now()}`, type, position: { x: x !== null ? x : 100 + Math.random() * 200, y: y !== null ? y : 100 + Math.random() * 200 }, data: { label: nodeType.name, ...nodeType.defaultData } }; setNodes(prev => [...prev, newNode]) }
   const updateNodePosition = (nodeId, position) => setNodes(prev => prev.map(node => node.id === nodeId ? { ...node, position } : node))
-
   const updateNodeData = (nodeId, data) => {
     let newSelectedNode = null;
     setNodes(prev => {
@@ -76,7 +75,6 @@ const NodeEditor = () => {
       setSelectedNode(newSelectedNode);
     }
   }
-
   const handleNodeMouseDown = (e, node) => {
     if (e.target.classList.contains('port')) return;
     setDraggedNode(node);
@@ -154,7 +152,6 @@ const NodeEditor = () => {
 
       const result = await currentExecutor.next();
       
-
       if (result.done) {
         if (result.value.status === 'completed') {
           alert('ワークフローの実行が完了しました。');
