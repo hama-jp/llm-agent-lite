@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useLayoutEffect } from 'react'
 import { Plus, Play, Save, Download, Upload, Trash2, Square, FileUp, StepForward, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
@@ -27,8 +27,57 @@ const NodeEditor = () => {
     currentNodeId: null,
     executedNodeIds: new Set(),
   })
+  const [connectionPaths, setConnectionPaths] = useState([]);
   const canvasRef = useRef(null)
   const nodeRefs = useRef(new Map())
+  const portRefs = useRef(new Map())
+
+  useLayoutEffect(() => {
+    const newConnectionPaths = connections.map((conn) => {
+      const fromNode = nodes.find(n => n.id === conn.from.nodeId)
+      const toNode = nodes.find(n => n.id === conn.to.nodeId)
+      if (!fromNode || !toNode) return null
+
+      const fromPortEl = portRefs.current.get(`${conn.from.nodeId}-output-${conn.from.portIndex}`)
+      const toPortEl = portRefs.current.get(`${conn.to.nodeId}-input-${conn.to.portIndex}`)
+      const canvasEl = canvasRef.current
+
+      if (!fromPortEl || !toPortEl || !canvasEl) {
+        return null
+      }
+
+      const canvasRect = canvasEl.getBoundingClientRect()
+      const fromPortRect = fromPortEl.getBoundingClientRect()
+      const toPortRect = toPortEl.getBoundingClientRect()
+
+      const fromX = fromPortRect.right - canvasRect.left
+      const fromY = fromPortRect.top - canvasRect.top + fromPortRect.height / 2
+      const toX = toPortRect.left - canvasRect.left
+      const toY = toPortRect.top - canvasRect.top + toPortRect.height / 2
+
+      const isLoop = fromNode.id === toNode.id
+      const pathData = isLoop
+        ? `M ${fromX} ${fromY} C ${fromX + 60} ${fromY - 60}, ${toX - 60} ${toY - 60}, ${toX} ${toY}`
+        : `M ${fromX} ${fromY} C ${fromX + Math.abs(toX - fromX) * 0.4} ${fromY}, ${toX - Math.abs(toX - fromX) * 0.4} ${toY}, ${toX} ${toY}`
+
+      const fromPortName = nodeTypes[fromNode.type].outputs[conn.from.portIndex]
+      let strokeColor = '#3b82f6'
+      if (fromPortName === 'true') strokeColor = '#10b981'
+      else if (fromPortName === 'false') strokeColor = '#ef4444'
+      else if (fromPortName === 'loop') strokeColor = '#8b5cf6'
+
+      return {
+        id: conn.id,
+        pathData,
+        strokeColor,
+        fromPortName,
+        fromX,
+        fromY,
+      };
+    }).filter(Boolean);
+
+    setConnectionPaths(newConnectionPaths);
+  }, [nodes, connections, selectedConnection]);
 
   React.useEffect(() => {
     const handleKeyDown = (e) => {
@@ -390,7 +439,13 @@ const NodeEditor = () => {
         <div className="p-3 space-y-2">
           {nodeType.inputs.map((inputName, index) => (
             <div key={`input-${index}`} className="flex items-center">
-              <div className={`port w-4 h-4 rounded-full cursor-pointer transition-all duration-200 mr-2 ${isConnecting ? 'bg-green-400 hover:bg-green-500 shadow-lg' : 'bg-gray-400 hover:bg-gray-600'}`} onMouseUp={(e) => handlePortMouseUp(e, node.id, index, false)} title={`入力: ${inputName}`} />
+              <div
+                ref={el => {
+                  const key = `${node.id}-input-${index}`
+                  if (el) portRefs.current.set(key, el)
+                  else portRefs.current.delete(key)
+                }}
+                className={`port w-4 h-4 rounded-full cursor-pointer transition-all duration-200 mr-2 ${isConnecting ? 'bg-green-400 hover:bg-green-500 shadow-lg' : 'bg-gray-400 hover:bg-gray-600'}`} onMouseUp={(e) => handlePortMouseUp(e, node.id, index, false)} title={`入力: ${inputName}`} />
               <span className="text-xs text-gray-600 font-medium">{inputName}</span>
             </div>
           ))}
@@ -404,7 +459,13 @@ const NodeEditor = () => {
           {nodeType.outputs.map((outputName, index) => (
             <div key={`output-${index}`} className="flex items-center justify-end">
               <span className="text-xs text-gray-600 font-medium mr-2">{outputName}</span>
-              <div className={`port w-4 h-4 rounded-full cursor-pointer transition-all duration-200 ${isConnecting && connectionStart?.nodeId === node.id && connectionStart?.portIndex === index ? 'bg-blue-600 ring-2 ring-blue-400' : 'bg-gray-400 hover:bg-blue-500'}`} onMouseDown={(e) => handlePortMouseDown(e, node.id, index, true)} title={`出力: ${outputName}`} />
+              <div
+                ref={el => {
+                  const key = `${node.id}-output-${index}`
+                  if (el) portRefs.current.set(key, el)
+                  else portRefs.current.delete(key)
+                }}
+                className={`port w-4 h-4 rounded-full cursor-pointer transition-all duration-200 ${isConnecting && connectionStart?.nodeId === node.id && connectionStart?.portIndex === index ? 'bg-blue-600 ring-2 ring-blue-400' : 'bg-gray-400 hover:bg-blue-500'}`} onMouseDown={(e) => handlePortMouseDown(e, node.id, index, true)} title={`出力: ${outputName}`} />
             </div>
           ))}
         </div>
@@ -413,47 +474,23 @@ const NodeEditor = () => {
   }
 
   const renderConnections = () => {
-    return connections.map((conn, index) => {
-      const fromNode = nodes.find(n => n.id === conn.from.nodeId);
-      const toNode = nodes.find(n => n.id === conn.to.nodeId);
-      if (!fromNode || !toNode) return null;
-      const fromNodeType = nodeTypes[fromNode.type];
-      const fromNodeEl = nodeRefs.current.get(fromNode.id);
-      const fromNodeWidth = fromNodeEl ? fromNodeEl.offsetWidth : 160;
-      const fromX = fromNode.position.x + (fromNodeWidth / 2);
-      const toX = toNode.position.x;
-      const headerHeight = 40;
-      const portSlotHeight = 24;
-      const previewPadding = 8;
-      const previewLineHeight = 14;
-      const bodyV_Padding = 12;
-      const margin = 8;
-      const previewTotalHeight = previewLineHeight + previewPadding;
-      const inputsHeight = fromNodeType.inputs.length * portSlotHeight;
-      const fromY_outputSectionStart = fromNode.position.y + headerHeight + bodyV_Padding + inputsHeight + margin + previewTotalHeight + margin;
-      const fromY = fromY_outputSectionStart + (conn.from.portIndex * portSlotHeight) + (portSlotHeight / 2);
-      const toY_inputSectionStart = toNode.position.y + headerHeight + bodyV_Padding;
-      const toY = toY_inputSectionStart + (conn.to.portIndex * portSlotHeight) + (portSlotHeight / 2);
-      const isLoop = fromNode.id === toNode.id;
-      const pathData = isLoop ? `M ${fromX} ${fromY} C ${fromX + 60} ${fromY - 60}, ${toX - 60} ${toY - 60}, ${toX} ${toY}` : `M ${fromX} ${fromY} C ${fromX + Math.abs(toX - fromX) * 0.4} ${fromY}, ${toX - Math.abs(toX - fromX) * 0.4} ${toY}, ${toX} ${toY}`;
-      const fromPortName = nodeTypes[fromNode.type].outputs[conn.from.portIndex];
-      let strokeColor = '#3b82f6';
-      if (fromPortName === 'true') strokeColor = '#10b981'; else if (fromPortName === 'false') strokeColor = '#ef4444'; else if (fromPortName === 'loop') strokeColor = '#8b5cf6';
-      const isSelected = selectedConnection === conn.id;
+    return connectionPaths.map((path, index) => {
+      const { id, pathData, strokeColor, fromPortName, fromX, fromY } = path;
+      const isSelected = selectedConnection === id;
       return (
-        <svg key={conn.id || index} className="absolute z-10" style={{ left: 0, top: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}>
+        <svg key={id || index} className="absolute z-10" style={{ left: 0, top: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}>
           <defs>
             <linearGradient id={`gradient-${index}`} x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor={strokeColor} stopOpacity={0.8} /><stop offset="100%" stopColor={strokeColor} stopOpacity={0.48} /></linearGradient>
-            <filter id={`glow-${index}`}><feGaussianBlur stdDeviation="3.5" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <filter id={`glow-${index}`}><feGaussianBlur stdDeviation="3.5" result="coloredBlur" /><feMerge><feMergeNode in="coloredBlur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
             <marker id={`arrowhead-${index}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill={strokeColor} /></marker>
             <marker id="arrowhead-selected" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#e11d48" /></marker>
           </defs>
-          <g className="cursor-pointer" onClick={(e) => { e.stopPropagation(); setSelectedConnection(conn.id); }} style={{ pointerEvents: 'all' }}>
+          <g className="cursor-pointer" onClick={(e) => { e.stopPropagation(); setSelectedConnection(id); }} style={{ pointerEvents: 'all' }}>
             <path d={pathData} stroke="transparent" strokeWidth="20" fill="none" />
             <path d={pathData} stroke={isSelected ? '#e11d48' : `url(#gradient-${index})`} strokeWidth={isSelected ? 4 : 3} fill="none" filter={isSelected ? 'url(#glow-selected)' : `url(#glow-${index})`} markerEnd={isSelected ? 'url(#arrowhead-selected)' : `url(#arrowhead-${index})`} className="transition-all duration-200" />
             {!isSelected && (<circle r="4" fill={strokeColor} className="opacity-80"><animateMotion dur="2s" repeatCount="indefinite" path={pathData} /></circle>)}
           </g>
-          {fromPortName !== 'output' && (<text x={fromX - 5} y={fromY - 8} className="text-xs font-medium fill-gray-600" textAnchor="end" style={{ pointerEvents: 'none' }}>{fromPortName}</text>)}
+          {fromPortName !== 'output' && (<text x={fromX + 5} y={fromY - 8} className="text-xs font-medium fill-gray-600" textAnchor="start" style={{ pointerEvents: 'none' }}>{fromPortName}</text>)}
         </svg>
       )
     })
