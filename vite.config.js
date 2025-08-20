@@ -5,7 +5,7 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/llm-agent-lite/', // GitHub Pagesのサブディレクトリ名
+  base: './', // 相対パスに変更
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
