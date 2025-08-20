@@ -2,7 +2,8 @@ import React, { useState, useRef, useCallback, useLayoutEffect, useMemo, useEffe
 import { Plus, Play, Save, Download, Upload, Trash2, Square, FileUp, StepForward, RotateCcw, MoreHorizontal, FilePlus, FolderOpen, Trash, Edit, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Alert, AlertDescription, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog.jsx'
+import { Alert, AlertDescription } from '@/components/ui/alert.jsx'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu.jsx'
 import { Input } from '@/components/ui/input.jsx'
@@ -10,6 +11,16 @@ import nodeExecutionService from '../services/nodeExecutionService.js'
 import llmService from '../services/llmService.js'
 import workflowManagerService from '../services/workflowManagerService.js'
 import { debounce } from '../lib/utils.js'
+
+// nodeTypes定義をコンポーネント外に移動
+const nodeTypes = {
+  input: { name: '入力', icon: '📥', color: 'bg-gradient-to-br from-orange-400 to-orange-600', borderColor: 'border-orange-300', textColor: 'text-white', inputs: [], outputs: ['output'], defaultData: { value: '', inputType: 'text' } },
+  text_combiner: { name: 'テキスト結合', icon: '🔗', color: 'bg-gradient-to-br from-teal-400 to-teal-600', borderColor: 'border-teal-300', textColor: 'text-white', inputs: ['input1', 'input2', 'input3', 'input4'], outputs: ['output'], defaultData: {} },
+  llm: { name: 'LLM生成', icon: '🤖', color: 'bg-gradient-to-br from-blue-400 to-blue-600', borderColor: 'border-blue-300', textColor: 'text-white', inputs: ['input'], outputs: ['output'], defaultData: { prompt: 'あなたは優秀なアシスタントです。以下の入力に対して適切に回答してください。\n\n入力: {{input}}', temperature: 1.0, model: 'gpt-5-nano' } },
+  if: { name: 'If条件分岐', icon: '🔀', color: 'bg-gradient-to-br from-pink-400 to-pink-600', borderColor: 'border-pink-300', textColor: 'text-white', inputs: ['input'], outputs: ['true', 'false'], defaultData: { conditionType: 'llm', condition: '入力が肯定的な内容かどうか判断してください', variable: '', operator: '==', value: '', model: 'gpt-5-nano', temperature: 0.7 } },
+  while: { name: 'While繰り返し', icon: '🔄', color: 'bg-gradient-to-br from-purple-400 to-purple-600', borderColor: 'border-purple-300', textColor: 'text-white', inputs: ['input', 'loop'], outputs: ['output', 'loop'], defaultData: { conditionType: 'variable', condition: '', variable: 'counter', operator: '<', value: '10', maxIterations: 100 } },
+  output: { name: '出力', icon: '📤', color: 'bg-gradient-to-br from-green-400 to-green-600', borderColor: 'border-green-300', textColor: 'text-white', inputs: ['input'], outputs: [], defaultData: { format: 'text', title: '結果', result: '' } }
+}
 
 const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditingNodeChange }) => {
   const [currentWorkflow, setCurrentWorkflow] = useState(null);
@@ -30,6 +41,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
   const [connectionPaths, setConnectionPaths] = useState([]);
   const [isRenaming, setIsRenaming] = useState(false);
   const [workflows, setWorkflows] = useState([]);
+  const [nodeResizing, setNodeResizing] = useState(null); // { nodeId, startSize, startMouse }
 
   const canvasRef = useRef(null)
   const nodeRefs = useRef(new Map())
@@ -48,7 +60,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
       workflowManagerService.saveWorkflow(wf);
       setWorkflows(Object.values(workflowManagerService.getWorkflows()));
     }
-  }, 1000), []);
+  }, 300), []); // 300msに短縮してレスポンス向上
 
   useEffect(() => {
     if (currentWorkflow) {
@@ -105,8 +117,17 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
     }
   }, [selectedNode?.id, onEditingNodeChange]);
 
-  useLayoutEffect(() => {
-    const newConnectionPaths = connections.map((conn) => {
+  // editingNodeの変更をnodesに反映
+  useEffect(() => {
+    if (editingNode && selectedNode && editingNode.id === selectedNode.id) {
+      setNodes(prev => prev.map(node => 
+        node.id === editingNode.id ? editingNode : node
+      ));
+    }
+  }, [editingNode, selectedNode?.id]);
+
+  const connectionPathsCalculation = useCallback(() => {
+    return connections.map((conn) => {
       const fromNode = nodes.find(n => n.id === conn.from.nodeId)
       const toNode = nodes.find(n => n.id === conn.to.nodeId)
       if (!fromNode || !toNode) return null
@@ -115,7 +136,14 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
       const toPortEl = portRefs.current.get(`${conn.to.nodeId}-input-${conn.to.portIndex}`)
       const canvasEl = canvasRef.current
 
-      if (!fromPortEl || !toPortEl || !canvasEl) return null
+      if (!fromPortEl || !toPortEl || !canvasEl) {
+        // DOM要素が見つからない場合は少し待ってからリトライ
+        setTimeout(() => {
+          const retryPaths = connectionPathsCalculation();
+          setConnectionPaths(retryPaths);
+        }, 50);
+        return null;
+      }
 
       const canvasRect = canvasEl.getBoundingClientRect()
       const fromPortRect = fromPortEl.getBoundingClientRect()
@@ -139,9 +167,30 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
 
       return { id: conn.id, pathData, strokeColor, fromPortName, fromX, fromY };
     }).filter(Boolean);
+  }, [nodes, connections]); // nodeTypesは外部定数のため依存配列から除外
 
-    setConnectionPaths(newConnectionPaths);
-  }, [nodes, connections, selectedConnection]);
+  const memoizedConnectionPaths = useMemo(() => {
+    return connectionPathsCalculation();
+  }, [connectionPathsCalculation]);
+
+  useLayoutEffect(() => {
+    setConnectionPaths(memoizedConnectionPaths);
+  }, [memoizedConnectionPaths, selectedConnection]);
+
+  // ノード位置変更時の接続線強制リフレッシュ
+  useLayoutEffect(() => {
+    if (draggedNode) {
+      // ドラッグ中は頻繁な再計算を避ける
+      return;
+    }
+    // 短い遅延後に接続線を再計算（DOM更新完了を待つ）
+    const timer = setTimeout(() => {
+      const refreshedPaths = connectionPathsCalculation();
+      setConnectionPaths(refreshedPaths);
+    }, 16); // 1フレーム待機
+    
+    return () => clearTimeout(timer);
+  }, [nodes, connectionPathsCalculation, draggedNode]);
 
   React.useEffect(() => {
     const handleKeyDown = (e) => {
@@ -155,14 +204,21 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [selectedConnection])
 
-  const nodeTypes = {
-    input: { name: '入力', icon: '📥', color: 'bg-gradient-to-br from-orange-400 to-orange-600', borderColor: 'border-orange-300', textColor: 'text-white', inputs: [], outputs: ['output'], defaultData: { value: '', inputType: 'text' } },
-    text_combiner: { name: 'テキスト結合', icon: '🔗', color: 'bg-gradient-to-br from-teal-400 to-teal-600', borderColor: 'border-teal-300', textColor: 'text-white', inputs: ['input1', 'input2', 'input3', 'input4'], outputs: ['output'], defaultData: {} },
-    llm: { name: 'LLM生成', icon: '🤖', color: 'bg-gradient-to-br from-blue-400 to-blue-600', borderColor: 'border-blue-300', textColor: 'text-white', inputs: ['input'], outputs: ['output'], defaultData: { prompt: 'あなたは優秀なアシスタントです。以下の入力に対して適切に回答してください。\n\n入力: {{input}}', temperature: 1.0, model: 'gpt-5-nano' } },
-    if: { name: 'If条件分岐', icon: '🔀', color: 'bg-gradient-to-br from-pink-400 to-pink-600', borderColor: 'border-pink-300', textColor: 'text-white', inputs: ['input'], outputs: ['true', 'false'], defaultData: { conditionType: 'llm', condition: '入力が肯定的な内容かどうか判断してください', variable: '', operator: '==', value: '', model: 'gpt-5-nano', temperature: 0.7 } },
-    while: { name: 'While繰り返し', icon: '🔄', color: 'bg-gradient-to-br from-purple-400 to-purple-600', borderColor: 'border-purple-300', textColor: 'text-white', inputs: ['input', 'loop'], outputs: ['output', 'loop'], defaultData: { conditionType: 'variable', condition: '', variable: 'counter', operator: '<', value: '10', maxIterations: 100 } },
-    output: { name: '出力', icon: '📤', color: 'bg-gradient-to-br from-green-400 to-green-600', borderColor: 'border-green-300', textColor: 'text-white', inputs: ['input'], outputs: [], defaultData: { format: 'text', title: '結果', result: '' } }
-  }
+  // ウィンドウリサイズ時の接続線更新
+  React.useEffect(() => {
+    const handleResize = () => {
+      // リサイズ後に接続線を再計算
+      setTimeout(() => {
+        const refreshedPaths = connectionPathsCalculation();
+        setConnectionPaths(refreshedPaths);
+      }, 100);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [connectionPathsCalculation]);
+
+
 
   const handleCanvasRightClick = (e) => {
     e.preventDefault();
@@ -196,6 +252,16 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
       id: `${type}_${Date.now()}`,
       type,
       position: { x: x !== null ? x : 100 + Math.random() * 200, y: y !== null ? y : 100 + Math.random() * 200 },
+      size: { 
+        width: type === 'input' || type === 'output' ? 180 : 
+               type === 'llm' ? 320 : 160,
+        height: type === 'input' || type === 'output' ? 168 : // 140 * 1.2
+                type === 'llm' ? 240 : // 120 * 2
+                type === 'text_combiner' ? 210 : // 220 - 10
+                type === 'if' ? 180 : // 240 - 60
+                type === 'while' ? 220 : // 240 - 20
+                120
+      }, // カスタマイズサイズ
       data: { label: nodeType.name, ...defaultData }
     };
     setNodes(prev => [...prev, newNode]);
@@ -205,13 +271,29 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
     setNodes(prev => prev.map(node => node.id === nodeId ? { ...node, position } : node));
   };
 
+  const updateNodeSize = (nodeId, size) => {
+    setNodes(prev => prev.map(node => node.id === nodeId ? { ...node, size } : node));
+  };
+
   const handleNodeMouseDown = (e, node) => {
     if (e.target.classList.contains('port')) return;
+    if (e.target.classList.contains('resize-handle')) return;
+    e.preventDefault(); // ドラッグ開始時のテキスト選択を防ぐ
     setDraggedNode(node);
     const rect = canvasRef.current?.getBoundingClientRect();
     if (rect) {
       setDragOffset({ x: e.clientX - rect.left - node.position.x, y: e.clientY - rect.top - node.position.y });
     }
+  };
+
+  const handleResizeMouseDown = (e, node) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setNodeResizing({
+      nodeId: node.id,
+      startSize: node.size || { width: 160, height: 120 },
+      startMouse: { x: e.clientX, y: e.clientY }
+    });
   };
 
   const handleNodeClick = (e, node) => {
@@ -235,24 +317,54 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
   };
 
   const handleMouseMove = useCallback((e) => {
+    // ドラッグ中のテキスト選択を防ぐ
+    if (draggedNode || isConnecting || nodeResizing) {
+      e.preventDefault();
+      e.stopPropagation();
+      document.getSelection()?.removeAllRanges(); // テキスト選択をクリア
+    }
+
     const canvasRect = canvasRef.current.getBoundingClientRect();
     const mouseX = e.clientX - canvasRect.left;
     const mouseY = e.clientY - canvasRect.top;
+    
     if (draggedNode) {
       const newPosition = { x: mouseX - dragOffset.x, y: mouseY - dragOffset.y };
       updateNodePosition(draggedNode.id, newPosition);
     }
+    
     if (isConnecting && draggingLine) {
       setDraggingLine(prev => ({ ...prev, endX: mouseX, endY: mouseY }));
     }
-  }, [draggedNode, dragOffset, isConnecting, draggingLine]);
+    
+    if (nodeResizing) {
+      const deltaX = e.clientX - nodeResizing.startMouse.x;
+      const deltaY = e.clientY - nodeResizing.startMouse.y;
+      const newSize = {
+        width: Math.max(160, nodeResizing.startSize.width + deltaX),
+        height: Math.max(120, nodeResizing.startSize.height + deltaY)
+      };
+      updateNodeSize(nodeResizing.nodeId, newSize);
+    }
+  }, [draggedNode, dragOffset, isConnecting, draggingLine, nodeResizing]);
 
   const handleMouseUp = () => {
-    if (draggedNode) setDraggedNode(null);
+    if (draggedNode) {
+      setDraggedNode(null);
+      // ドラッグ終了時にテキスト選択をクリア
+      document.getSelection()?.removeAllRanges();
+    }
     if (isConnecting) {
       setIsConnecting(false);
       setConnectionStart(null);
       setDraggingLine(null);
+      // 接続終了時にもテキスト選択をクリア
+      document.getSelection()?.removeAllRanges();
+    }
+    if (nodeResizing) {
+      setNodeResizing(null);
+      // リサイズ終了時にもテキスト選択をクリア
+      document.getSelection()?.removeAllRanges();
     }
   };
 
@@ -311,7 +423,20 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
       } while (!result.done);
       const finalState = result.value;
       if (finalState.status === 'completed') {
-        setExecutionResult({ success: true, variables: finalState.variables });
+        // 出力ノードの最終結果も収集
+        const outputResults = {};
+        const outputNodes = nodes.filter(n => n.type === 'output');
+        outputNodes.forEach(node => {
+          if (nodeExecutionService.executionContext[node.id] !== undefined) {
+            outputResults[node.data.label || `出力${node.id}`] = nodeExecutionService.executionContext[node.id];
+          }
+        });
+        
+        setExecutionResult({ 
+          success: true, 
+          variables: finalState.variables,
+          outputs: outputResults
+        });
       } else {
         setExecutionResult({ success: false, error: finalState.error?.message || 'Unknown error' });
       }
@@ -341,7 +466,19 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
       if (result.done) {
         if (result.value.status === 'completed') {
           alert('ワークフローの実行が完了しました。');
-          setExecutionResult({ success: true, variables: result.value.variables });
+          // 出力ノードの最終結果も収集
+          const outputResults = {};
+          const outputNodes = nodes.filter(n => n.type === 'output');
+          outputNodes.forEach(node => {
+            if (nodeExecutionService.executionContext[node.id] !== undefined) {
+              outputResults[node.data.label || `出力${node.id}`] = nodeExecutionService.executionContext[node.id];
+            }
+          });
+          setExecutionResult({ 
+            success: true, 
+            variables: result.value.variables,
+            outputs: outputResults
+          });
         } else if (result.value.status === 'error') {
           alert(`エラーが発生しました: ${result.value.error?.message}`);
           setExecutionResult({ success: false, error: result.value.error?.message });
@@ -416,7 +553,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
     }
   };
 
-  const renderNode = (node) => {
+  const renderNode = useCallback((node) => {
     const nodeType = nodeTypes[node.type];
     if (!nodeType) return null;
     const isSelected = selectedNode?.id === node.id;
@@ -429,8 +566,16 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
 
     return (
       <div key={node.id} ref={(el) => { if (el) nodeRefs.current.set(node.id, el); else nodeRefs.current.delete(node.id); }}
-        className={`absolute bg-white border-2 rounded-lg shadow-lg cursor-move min-w-40 transition-all duration-200 hover:shadow-xl ${borderClass}`}
-        style={{ left: node.position.x, top: node.position.y, zIndex: isSelected ? 10 : 1, transform: isSelected ? 'scale(1.02)' : 'scale(1)' }}
+        className={`absolute bg-white border-2 rounded-lg shadow-lg cursor-move min-w-40 transition-all duration-200 hover:shadow-xl select-none ${borderClass}`}
+        style={{ 
+          left: node.position.x, 
+          top: node.position.y, 
+          width: node.size?.width || 160, 
+          height: node.size?.height || 120,
+          zIndex: isSelected ? 10 : 1, 
+          transform: isSelected ? 'scale(1.02)' : 'scale(1)', 
+          userSelect: 'none' 
+        }}
         onMouseDown={(e) => handleNodeMouseDown(e, node)} onClick={(e) => handleNodeClick(e, node)} >
         <div className={`${nodeType.color} ${nodeType.textColor} px-3 py-2 rounded-t-md flex items-center justify-between`}>
           <div className="flex items-center space-x-2"><span className="text-lg">{nodeType.icon}</span><span className="text-sm font-medium truncate max-w-24">{node.data.label}</span></div>
@@ -445,11 +590,12 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
             </div>
           ))}
           <div className="text-xs text-gray-700 bg-gray-50 p-2 rounded border">
-            {node.type === 'input' && <div className="truncate">{node.data.value || '入力値を設定...'}</div>}
-            {node.type === 'llm' && <div className="truncate">プロンプト: {node.data.prompt?.substring(0, 30)}...</div>}
+            {node.type === 'input' && node.data.inputType !== 'text' && <div className="truncate">{node.data.value || '入力値を設定...'}</div>}
+            {node.type === 'llm' && <textarea className="w-full text-xs bg-transparent border-none focus:ring-0 resize-none" readOnly value={`プロンプト: ${node.data.prompt || ''}`} placeholder="プロンプト..." style={{ height: `${Math.max(100, (node.size?.height || 240) - 140)}px` }} />}
             {node.type === 'if' && <div className="truncate">条件: {node.data.condition?.substring(0, 30)}...</div>}
             {node.type === 'while' && <div className="truncate">繰り返し: {node.data.variable} {node.data.operator} {node.data.value}</div>}
-            {node.type === 'output' && <textarea className="w-full h-12 text-xs bg-transparent border-none focus:ring-0 resize-none" readOnly value={String(node.data.result || '')} placeholder="実行結果..." />}
+            {node.type === 'input' && node.data.inputType === 'text' && <textarea className="w-full text-xs bg-transparent border-none focus:ring-0 resize-none" readOnly value={String(node.data.value || '')} placeholder="入力値..." style={{ height: `${Math.max(10, (node.size?.height || 168) - 110)}px` }} />}
+            {node.type === 'output' && <textarea className="w-full text-xs bg-transparent border-none focus:ring-0 resize-none" readOnly value={String(node.data.result || '')} placeholder="実行結果..." style={{ height: `${Math.max(10, (node.size?.height || 168) - 110)}px` }} />}
           </div>
           {nodeType.outputs.map((outputName, index) => (
             <div key={`output-${index}`} className="flex items-center justify-end">
@@ -459,11 +605,23 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
             </div>
           ))}
         </div>
+        {/* リサイズハンドル（入力・出力ノードのみ） */}
+        {(node.type === 'input' || node.type === 'output') && (
+          <div 
+            className="resize-handle absolute bottom-0 right-0 w-4 h-4 cursor-se-resize bg-gray-400 hover:bg-gray-600 transition-colors"
+            style={{ 
+              clipPath: 'polygon(100% 0, 100% 100%, 0 100%)',
+              borderRadius: '0 0 6px 0'
+            }}
+            onMouseDown={(e) => handleResizeMouseDown(e, node)}
+            title="ドラッグでサイズ変更"
+          />
+        )}
       </div>
     )
-  }
+  }, [selectedNode, executionState, isConnecting, connectionStart, handleNodeMouseDown, handleNodeClick, deleteNode, handlePortMouseUp, handlePortMouseDown]); // nodeTypesは外部定数のため依存配列から除外
 
-  const renderConnections = () => {
+  const renderConnections = useCallback(() => {
     return connectionPaths.map((path, index) => {
       const { id, pathData, strokeColor, fromPortName, fromX, fromY } = path;
       const isSelected = selectedConnection === id;
@@ -484,7 +642,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
         </svg>
       )
     })
-  }
+  }, [connectionPaths, selectedConnection, setSelectedConnection]);
 
   const renderDraggingLine = () => {
     if (!draggingLine) return null;
@@ -535,7 +693,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
           <Button onClick={handleStepForward} disabled={executionState.running && executor} size="sm" variant="outline" className="gap-1.5"><StepForward className="h-4 w-4" />ステップ</Button>
           <Button onClick={handleResetExecution} disabled={!executionState.running} size="sm" variant="destructive" className="gap-1.5"><RotateCcw className="h-4 w-4" />リセット</Button>
         </div>
-        <div ref={canvasRef} className="w-full h-full relative cursor-crosshair" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onContextMenu={handleCanvasRightClick} onClick={() => { closeContextMenu(); onSelectedNodeChange(null); setSelectedConnection(null) }} style={{ backgroundImage: 'radial-gradient(circle, #ccc 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+        <div ref={canvasRef} className="w-full h-full relative cursor-crosshair select-none" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onContextMenu={handleCanvasRightClick} onClick={() => { closeContextMenu(); onSelectedNodeChange(null); setSelectedConnection(null) }} style={{ backgroundImage: 'radial-gradient(circle, #ccc 1px, transparent 1px)', backgroundSize: '20px 20px', userSelect: draggedNode || isConnecting ? 'none' : 'auto' }}>
           {renderConnections()}
           {renderDraggingLine()}
           {nodes.map(renderNode)}
@@ -549,14 +707,38 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
       </div>
       <div className="w-80 bg-white border-l overflow-y-auto">
         {/* This panel is now empty, it will be moved to Layout.jsx */}
-        {!editingNode && (
-            <div className="p-4"><div className="text-center text-gray-500 py-8"><div className="text-4xl mb-2">🎯</div><div className="text-sm">ノードを選択してください</div><div className="text-xs mt-1">右クリックでノードを追加できます</div></div></div>
-        )}
+
          {executionResult && (
           <div className="p-4 border-t">
             <div className="space-y-2">
               <div className="flex items-center justify-between"><h4 className="font-medium text-sm">実行結果</h4><button onClick={() => setShowDebugLog(!showDebugLog)} className="text-xs text-blue-600 hover:text-blue-800 underline">{showDebugLog ? 'ログを隠す' : 'デバッグログ'}</button></div>
-              {executionResult.success ? (<div className="text-xs bg-green-50 border border-green-200 rounded p-2"><div className="text-green-800 font-medium">実行成功</div>{executionResult.variables && Object.keys(executionResult.variables).length > 0 && (<div className="mt-2"><div className="text-green-700">変数:</div><pre className="text-green-600 whitespace-pre-wrap">{JSON.stringify(executionResult.variables, null, 2)}</pre></div>)}</div>) : (<div className="text-xs bg-red-50 border border-red-200 rounded p-2"><div className="text-red-800 font-medium">実行エラー</div><div className="text-red-600 mt-1">{executionResult.error}</div></div>)}
+              {executionResult.success ? (
+                <div className="text-xs bg-green-50 border border-green-200 rounded p-2">
+                  <div className="text-green-800 font-medium">実行成功</div>
+                  {executionResult.outputs && Object.keys(executionResult.outputs).length > 0 && (
+                    <div className="mt-2">
+                      <div className="text-green-700 font-medium">出力結果:</div>
+                      {Object.entries(executionResult.outputs).map(([key, value]) => (
+                        <div key={key} className="mt-1 p-2 bg-white border rounded">
+                          <div className="text-green-800 font-medium text-xs">{key}:</div>
+                          <pre className="text-green-600 whitespace-pre-wrap text-xs mt-1">{String(value)}</pre>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {executionResult.variables && Object.keys(executionResult.variables).length > 0 && (
+                    <div className="mt-2">
+                      <div className="text-green-700 font-medium">実行変数:</div>
+                      <pre className="text-green-600 whitespace-pre-wrap text-xs">{JSON.stringify(executionResult.variables, null, 2)}</pre>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-xs bg-red-50 border border-red-200 rounded p-2">
+                  <div className="text-red-800 font-medium">実行エラー</div>
+                  <div className="text-red-600 mt-1">{executionResult.error}</div>
+                </div>
+              )}
               {showDebugLog && debugLog.length > 0 && (
                 <div className="mt-3 border-t pt-3">
                   <h5 className="font-medium text-xs text-gray-700 mb-2">デバッグログ</h5>
