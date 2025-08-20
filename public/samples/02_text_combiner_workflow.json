@@ -1,0 +1,86 @@
+{
+  "id": "sample-02-text-combiner",
+  "name": "02 - テキスト結合とLLM",
+  "nodes": [
+    {
+      "id": "input_prompt_template",
+      "type": "input",
+      "position": { "x": 50, "y": 50 },
+      "size": { "width": 220, "height": 180 },
+      "data": {
+        "label": "プロンプトテンプレート",
+        "value": "以下のテキストを要約してください。\n\nテキスト： {{input}}",
+        "inputType": "text"
+      }
+    },
+    {
+      "id": "input_text",
+      "type": "input",
+      "position": { "x": 50, "y": 280 },
+      "size": { "width": 220, "height": 180 },
+      "data": {
+        "label": "処理対象テキスト",
+        "value": "大規模言語モデル（LLM）は、膨大なテキストデータでトレーニングされた人工知能の一種です。これにより、人間のようなテキストを生成、要約、翻訳、質問応答など、さまざまな自然言語処理タスクを実行できます。",
+        "inputType": "text"
+      }
+    },
+    {
+      "id": "combiner_1",
+      "type": "text_combiner",
+      "position": { "x": 350, "y": 175 },
+      "size": { "width": 200, "height": 210 },
+      "data": {
+        "label": "プロンプト作成",
+        "input1": "{{input1}}",
+        "input2": "{{input2}}"
+      }
+    },
+    {
+      "id": "llm_1",
+      "type": "llm",
+      "position": { "x": 600, "y": 175 },
+      "size": { "width": 320, "height": 240 },
+      "data": {
+        "label": "LLMによる要約",
+        "prompt": "{{input}}",
+        "temperature": 1.0,
+        "model": "gpt-5-nano"
+      }
+    },
+    {
+      "id": "output_1",
+      "type": "output",
+      "position": { "x": 970, "y": 200 },
+      "size": { "width": 220, "height": 180 },
+      "data": {
+        "label": "要約結果",
+        "format": "text",
+        "title": "要約結果",
+        "result": ""
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn_1",
+      "from": { "nodeId": "input_prompt_template", "portIndex": 0 },
+      "to": { "nodeId": "combiner_1", "portIndex": 0 }
+    },
+    {
+      "id": "conn_2",
+      "from": { "nodeId": "input_text", "portIndex": 0 },
+      "to": { "nodeId": "combiner_1", "portIndex": 1 }
+    },
+    {
+      "id": "conn_3",
+      "from": { "nodeId": "combiner_1", "portIndex": 0 },
+      "to": { "nodeId": "llm_1", "portIndex": 0 }
+    },
+    {
+      "id": "conn_4",
+      "from": { "nodeId": "llm_1", "portIndex": 0 },
+      "to": { "nodeId": "output_1", "portIndex": 0 }
+    }
+  ],
+  "lastModified": "2024-07-29T00:00:00.000Z"
+}
