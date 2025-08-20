@@ -37,7 +37,7 @@ class NodeExecutionService {
     this.executionLog = []
   }
 
-  startExecution(nodes, connections, inputData = {}) {
+  startExecution(nodes, connections, inputData = {}, nodeTypes = {}) {
     if (this.isExecuting) {
       throw new Error('ワークフローが既に実行中です')
     }
@@ -45,11 +45,12 @@ class NodeExecutionService {
     this.isExecuting = true
     this.executionContext = {}
     this.variables = { ...inputData }
+    this.nodeTypes = nodeTypes // Store node types
     this.clearLog()
     this.addLog('info', 'ワークフロー実行準備完了', null, {
-      nodeCount: nodes.length, 
+      nodeCount: nodes.length,
       connectionCount: connections.length,
-      inputData 
+      inputData
     })
 
     try {
@@ -60,7 +61,7 @@ class NodeExecutionService {
 
       this.executor = {
         _service: this,
-        
+
         async next() {
           if (!this._service.isExecuting) {
             this._service.addLog('info', '実行が外部から停止されました')
@@ -81,9 +82,9 @@ class NodeExecutionService {
             this._service.addLog('error', `ノードが見つかりません: ${nodeId}`)
             return this.next()
           }
-          
+
           this._service.addLog('info', `ノード実行開始: ${node.data.label || node.type}`, nodeId, node.data)
-          
+
           try {
             const result = await this._service.executeNode(node, nodes, connections)
             this._service.addLog('success', `ノード実行完了: ${node.data.label || node.type}`, nodeId, { result })
@@ -188,6 +189,9 @@ class NodeExecutionService {
       case 'output':
         output = await this.executeOutputNode(node, inputs)
         break
+      case 'text_combiner':
+        output = await this.executeTextCombinerNode(node, inputs)
+        break
       default:
         throw new Error(`未知のノードタイプ: ${node.type}`)
     }
@@ -195,36 +199,81 @@ class NodeExecutionService {
     return output
   }
 
+  async executeTextCombinerNode(node, inputs) {
+    const orderedInputNames = this.nodeTypes[node.type]?.inputs || [];
+    let combinedText = '';
+
+    for (const inputName of orderedInputNames) {
+      const inputValue = inputs[inputName];
+      if (inputValue !== undefined && inputValue !== null) {
+        // Since all node outputs are normalized to strings or simple types,
+        // we can safely convert to string here.
+        combinedText += String(inputValue);
+      }
+    }
+
+    this.addLog('info', `テキストを結合しました`, node.id, { result: combinedText });
+    return combinedText;
+  }
+
   getNodeInputs(node, connections, nodes) {
     const inputs = {};
-    connections
-      .filter(conn => conn.to.nodeId === node.id)
-      .forEach(conn => {
-        const sourceOutput = this.executionContext[conn.from.nodeId];
-        const sourceNode = nodes.find(n => n.id === conn.from.nodeId);
+    const nodeTypeDefinition = this.nodeTypes?.[node.type];
 
-        if (sourceOutput !== undefined && sourceNode) {
-          // NOTE: This logic is simplified due to the service not having node type definitions.
-          // It assumes the primary input is named 'input'.
-          const inputName = 'input';
+    if (!nodeTypeDefinition) {
+      this.addLog('warn', `ノードタイプ定義が見つかりません: ${node.type}`, node.id);
+      // Continue to gather inputs with fallback keys instead of returning empty
+    }
 
-          if (sourceNode.type === 'if') {
-            // 'if' node output is an object { condition, true, false }
-            // Port 0 is 'true', Port 1 is 'false'
-            if (conn.from.portIndex === 0 && sourceOutput.condition) {
-              inputs[inputName] = sourceOutput.true;
-            } else if (conn.from.portIndex === 1 && !sourceOutput.condition) {
-              inputs[inputName] = sourceOutput.false;
-            }
-          } else {
-            inputs[inputName] = sourceOutput;
-          }
+    const inputConnections = connections.filter(conn => conn.to.nodeId === node.id);
+
+    for (const conn of inputConnections) {
+      const sourceOutput = this.executionContext[conn.from.nodeId];
+      const sourceNode = nodes.find(n => n.id === conn.from.nodeId);
+
+      if (sourceOutput !== undefined && sourceNode) {
+        // Resolve input name with fallback to generic naming
+        let inputName;
+        if (nodeTypeDefinition?.inputs && nodeTypeDefinition.inputs[conn.to.portIndex]) {
+          inputName = nodeTypeDefinition.inputs[conn.to.portIndex];
+        } else if (conn.to?.name) {
+          inputName = conn.to.name;
+        } else {
+          inputName = `input${conn.to.portIndex}`;
         }
-      });
+
+        let valueToAssign;
+
+        if (sourceNode.type === 'if') {
+          // 'if' node output is an object { condition, true, false }
+          // Port 0 ('true') or Port 1 ('false')
+          if (conn.from.portIndex === 0 && sourceOutput.condition) {
+            valueToAssign = sourceOutput.true;
+          } else if (conn.from.portIndex === 1 && !sourceOutput.condition) {
+            valueToAssign = sourceOutput.false;
+          }
+        } else {
+          valueToAssign = sourceOutput;
+        }
+
+        if (valueToAssign !== undefined) {
+          // Warn if the same input name is being assigned multiple times
+          if (inputs[inputName] !== undefined) {
+            this.addLog('warn', `入力 '${inputName}' が複数の接続から供給されています`, node.id);
+          }
+          inputs[inputName] = valueToAssign;
+        }
+      }
+    }
     return inputs;
   }
 
   async executeInputNode(node, inputs) {
+    if (node.data.inputType === 'file') {
+      const value = node.data.fileContent || '';
+      this.variables[node.id] = value;
+      return value;
+    }
     const value = node.data.value || ''
     this.variables[node.id] = value
     return value
@@ -333,7 +382,8 @@ class NodeExecutionService {
 
   async executeOutputNode(node, inputs) {
     const format = node.data.format || 'text'
-    const inputValue = inputs.input || ''
+    // Get the first available input value, or fallback to empty string
+    const inputValue = Object.values(inputs)[0] || ''
     switch (format) {
       case 'json':
         try {

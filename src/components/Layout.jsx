@@ -11,12 +11,61 @@ const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
     onEditingNodeChange(prev => ({ ...prev, data: newEditingNodeData }));
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type === 'text/plain') {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        handleDataChange({
+          fileContent: event.target.result,
+          fileName: file.name,
+          value: `ファイル: ${file.name}` // Display file name in the text area as a visual cue
+        });
+      };
+      reader.readAsText(file);
+    } else {
+      alert('TXTファイルを選択してください。');
+    }
+  };
+
   return (
     <div className="p-4 border-t">
       <h3 className="font-semibold mb-4 text-sm">ノードプロパティ</h3>
       <div className="space-y-4">
         <div><label className="block text-sm font-medium mb-1">ノード名</label><input type="text" value={editingNode.data.label} onChange={(e) => handleDataChange({ label: e.target.value })} className="w-full px-3 py-2 border rounded-md" /></div>
-        {editingNode.type === 'input' && ( <><div><label className="block text-sm font-medium mb-1">入力値</label><textarea value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="実行時の入力値を設定します" /></div></> )}
+        {editingNode.type === 'input' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium mb-1">入力タイプ</label>
+              <select
+                value={editingNode.data.inputType || 'text'}
+                onChange={(e) => handleDataChange({ inputType: e.target.value, value: '', fileContent: null, fileName: null })}
+                className="w-full px-3 py-2 border rounded-md"
+              >
+                <option value="text">テキスト</option>
+                <option value="file">ファイル (txt)</option>
+              </select>
+            </div>
+            {(editingNode.data.inputType === 'file') ? (
+              <div>
+                <label className="block text-sm font-medium mb-1">入力ファイル</label>
+                <input type="file" accept=".txt" onChange={handleFileChange} className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100" />
+                {editingNode.data.fileName && <p className="text-xs text-gray-500 mt-1">読み込み済み: {editingNode.data.fileName}</p>}
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium mb-1">入力値</label>
+                <textarea
+                  value={editingNode.data.value || ''}
+                  onChange={(e) => handleDataChange({ value: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-md"
+                  rows={3}
+                  placeholder="実行時の入力値を設定します"
+                />
+              </div>
+            )}
+          </>
+        )}
         {editingNode.type === 'llm' && (
           <>
             <div><label className="block text-sm font-medium mb-1">プロンプト</label><textarea value={editingNode.data.prompt || ''} onChange={(e) => handleDataChange({ prompt: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={5} placeholder="プロンプトを入力してください" /></div>
