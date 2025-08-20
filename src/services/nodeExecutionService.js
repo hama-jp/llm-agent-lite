@@ -297,6 +297,7 @@ class NodeExecutionService {
   async executeLLMNode(node, inputs) {
     const prompt = node.data.prompt || ''
     const temperature = node.data.temperature || 0.7
+    const model = node.data.model
     let finalPrompt = prompt
     Object.entries(inputs).forEach(([key, value]) => {
       finalPrompt = finalPrompt.replace(new RegExp(`{{${key}}}`, 'g'), value)
@@ -305,7 +306,7 @@ class NodeExecutionService {
       finalPrompt = finalPrompt.replace(new RegExp(`{{${key}}}`, 'g'), value)
     })
     try {
-      const response = await llmService.sendMessage(finalPrompt, { temperature })
+      const response = await llmService.sendMessage(finalPrompt, { temperature, model })
       return response
     } catch (error) {
       throw new Error(`LLM実行エラー: ${error.message}`)
