@@ -404,9 +404,21 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
 
   const handleRunAll = async () => {
     if (nodes.length === 0) return alert('実行するノードがありません');
-    const inputNodes = nodes.filter(n => n.type === 'input');
+
+    // Create a new nodes array with results cleared
+    const cleanedNodes = nodes.map(node => {
+      if (node.type === 'output') {
+        return { ...node, data: { ...node.data, result: '' } };
+      }
+      return node;
+    });
+
+    // Update the state for the UI
+    setNodes(cleanedNodes);
+
+    const inputNodes = cleanedNodes.filter(n => n.type === 'input');
     const inputData = Object.fromEntries(inputNodes.map(n => [n.id, n.data.value || '']));
-    const exec = nodeExecutionService.startExecution(nodes, connections, inputData, nodeTypes);
+    const exec = nodeExecutionService.startExecution(cleanedNodes, connections, inputData, nodeTypes);
     setExecutor(exec);
     setExecutionState({ running: true, currentNodeId: null, executedNodeIds: new Set() });
     setExecutionResult(null);
@@ -425,7 +437,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
       if (finalState.status === 'completed') {
         // 出力ノードの最終結果も収集
         const outputResults = {};
-        const outputNodes = nodes.filter(n => n.type === 'output');
+        const outputNodes = cleanedNodes.filter(n => n.type === 'output');
         outputNodes.forEach(node => {
           if (nodeExecutionService.executionContext[node.id] !== undefined) {
             outputResults[node.data.label || `出力${node.id}`] = nodeExecutionService.executionContext[node.id];
@@ -454,9 +466,17 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
     let currentExecutor = executor;
     try {
       if (!currentExecutor) {
-        const inputNodes = nodes.filter(n => n.type === 'input');
+        const cleanedNodes = nodes.map(node => {
+          if (node.type === 'output') {
+            return { ...node, data: { ...node.data, result: '' } };
+          }
+          return node;
+        });
+        setNodes(cleanedNodes);
+
+        const inputNodes = cleanedNodes.filter(n => n.type === 'input');
         const inputData = Object.fromEntries(inputNodes.map(n => [n.id, n.data.value || '']));
-        currentExecutor = nodeExecutionService.startExecution(nodes, connections, inputData);
+        currentExecutor = nodeExecutionService.startExecution(cleanedNodes, connections, inputData);
         setExecutor(currentExecutor);
         setExecutionState({ running: true, currentNodeId: null, executedNodeIds: new Set() });
         alert("ステップ実行を開始します。もう一度「ステップ」を押して最初のノードを実行してください。");
@@ -474,8 +494,8 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
               outputResults[node.data.label || `出力${node.id}`] = nodeExecutionService.executionContext[node.id];
             }
           });
-          setExecutionResult({ 
-            success: true, 
+          setExecutionResult({
+            success: true,
             variables: result.value.variables,
             outputs: outputResults
           });
@@ -501,6 +521,14 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
     setExecutionState({ running: false, currentNodeId: null, executedNodeIds: new Set() });
     setExecutionResult(null);
     setDebugLog([]);
+    setNodes(prevNodes =>
+      prevNodes.map(node => {
+        if (node.type === 'output' && node.data.result) {
+          return { ...node, data: { ...node.data, result: '' } };
+        }
+        return node;
+      })
+    );
   };
 
   const exportWorkflow = () => {
