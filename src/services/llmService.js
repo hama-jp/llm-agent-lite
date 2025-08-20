@@ -42,7 +42,12 @@ class LLMService {
     const currentSettings = { ...this.settings, ...options };
     const { provider, apiKey, baseUrl, model, temperature, maxTokens } = currentSettings
 
-    if (!apiKey) {
+    // メッセージの検証
+    if (!message || typeof message !== 'string' || message.trim() === '') {
+      throw new Error('メッセージが空です。有効なメッセージを入力してください。')
+    }
+
+    if (!apiKey && (provider === 'openai' || provider === 'anthropic')) {
       throw new Error('APIキーが設定されていません。設定画面でAPIキーを入力してください。')
     }
 
@@ -52,17 +57,30 @@ class LLMService {
 
     switch (provider) {
       case 'openai':
-        endpoint = 'https://api.openai.com/v1/chat/completions'
-        headers = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+      case 'local':
+      case 'custom':
+        // エンドポイントの設定
+        if (provider === 'openai') {
+          endpoint = 'https://api.openai.com/v1/chat/completions'
+        } else {
+          endpoint = `${baseUrl}/chat/completions`
         }
+        
+        // ヘッダーの設定（OpenAI互換）
+        headers = {
+          'Content-Type': 'application/json'
+        }
+        if (apiKey && apiKey.trim() !== '') {
+          headers['Authorization'] = `Bearer ${apiKey}`
+        }
+        
+        // ボディの設定（OpenAI互換）
         body = {
           model: model,
           messages: [{ role: 'user', content: message }],
           temperature: temperature,
         }
-        if (model.startsWith('gpt-5')) {
+        if (model && model.startsWith('gpt-5')) {
           body.max_completion_tokens = maxTokens;
         } else {
           body.max_tokens = maxTokens;
@@ -83,30 +101,36 @@ class LLMService {
         }
         break
 
-      case 'local':
-      case 'custom':
-        endpoint = `${baseUrl}/chat/completions`
-        headers = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        }
-        body = {
-          model: model,
-          messages: [{ role: 'user', content: message }],
-          temperature: temperature,
-          max_tokens: maxTokens
-        }
-        break
-
       default:
         throw new Error(`未対応のプロバイダー: ${provider}`)
     }
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(body)
-    })
+    // デバッグ用のログ出力
+    console.log('LLM Request:', {
+      provider,
+      endpoint,
+      headers,
+      body,
+      baseUrl,
+      currentSettings
+    });
+
+    let response;
+    try {
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(body)
+      });
+    } catch (fetchError) {
+      console.error('Fetch Error:', {
+        error: fetchError,
+        endpoint,
+        baseUrl,
+        provider
+      });
+      throw new Error(`ネットワークエラー: ${fetchError.message}. エンドポイント: ${endpoint}`);
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
