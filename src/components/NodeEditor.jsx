@@ -382,6 +382,15 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
     setDraggingLine(null);
   };
 
+  const preprocessNodesForExecution = () => {
+    return nodes.map(node => {
+      if (node.type === 'output' && node.data.result) {
+        return { ...node, data: { ...node.data, result: '' } };
+      }
+      return node;
+    });
+  };
+
   const processExecutionCompletion = () => {
     const finalContext = nodeExecutionService.executionContext;
     let newSelectedNode = null;
@@ -405,20 +414,16 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
   const handleRunAll = async () => {
     if (nodes.length === 0) return alert('実行するノードがありません');
 
-    // Create a new nodes array with results cleared
-    const cleanedNodes = nodes.map(node => {
-      if (node.type === 'output') {
-        return { ...node, data: { ...node.data, result: '' } };
-      }
-      return node;
-    });
+    const preprocessedNodes = preprocessNodesForExecution();
+    // It's important to use the returned `preprocessedNodes` for execution,
+    // but only update the state with the cleared output nodes for UI rendering,
+    // without showing the user the manipulated prompt.
+    setNodes(preprocessedNodes.map(n => ({...n})));
 
-    // Update the state for the UI
-    setNodes(cleanedNodes);
-
-    const inputNodes = cleanedNodes.filter(n => n.type === 'input');
+    const inputNodes = preprocessedNodes.filter(n => n.type === 'input');
     const inputData = Object.fromEntries(inputNodes.map(n => [n.id, n.data.value || '']));
-    const exec = nodeExecutionService.startExecution(cleanedNodes, connections, inputData, nodeTypes);
+    const exec = nodeExecutionService.startExecution(preprocessedNodes, connections, inputData, nodeTypes);
+
     setExecutor(exec);
     setExecutionState({ running: true, currentNodeId: null, executedNodeIds: new Set() });
     setExecutionResult(null);
@@ -435,9 +440,8 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
       } while (!result.done);
       const finalState = result.value;
       if (finalState.status === 'completed') {
-        // 出力ノードの最終結果も収集
         const outputResults = {};
-        const outputNodes = cleanedNodes.filter(n => n.type === 'output');
+        const outputNodes = preprocessedNodes.filter(n => n.type === 'output');
         outputNodes.forEach(node => {
           if (nodeExecutionService.executionContext[node.id] !== undefined) {
             outputResults[node.data.label || `出力${node.id}`] = nodeExecutionService.executionContext[node.id];
@@ -466,17 +470,12 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
     let currentExecutor = executor;
     try {
       if (!currentExecutor) {
-        const cleanedNodes = nodes.map(node => {
-          if (node.type === 'output') {
-            return { ...node, data: { ...node.data, result: '' } };
-          }
-          return node;
-        });
-        setNodes(cleanedNodes);
+        const preprocessedNodes = preprocessNodesForExecution();
+        setNodes(preprocessedNodes.map(n => ({...n})));
 
-        const inputNodes = cleanedNodes.filter(n => n.type === 'input');
+        const inputNodes = preprocessedNodes.filter(n => n.type === 'input');
         const inputData = Object.fromEntries(inputNodes.map(n => [n.id, n.data.value || '']));
-        currentExecutor = nodeExecutionService.startExecution(cleanedNodes, connections, inputData);
+        currentExecutor = nodeExecutionService.startExecution(preprocessedNodes, connections, inputData);
         setExecutor(currentExecutor);
         setExecutionState({ running: true, currentNodeId: null, executedNodeIds: new Set() });
         alert("ステップ実行を開始します。もう一度「ステップ」を押して最初のノードを実行してください。");
@@ -486,7 +485,6 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
       if (result.done) {
         if (result.value.status === 'completed') {
           alert('ワークフローの実行が完了しました。');
-          // 出力ノードの最終結果も収集
           const outputResults = {};
           const outputNodes = nodes.filter(n => n.type === 'output');
           outputNodes.forEach(node => {
@@ -521,14 +519,6 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
     setExecutionState({ running: false, currentNodeId: null, executedNodeIds: new Set() });
     setExecutionResult(null);
     setDebugLog([]);
-    setNodes(prevNodes =>
-      prevNodes.map(node => {
-        if (node.type === 'output' && node.data.result) {
-          return { ...node, data: { ...node.data, result: '' } };
-        }
-        return node;
-      })
-    );
   };
 
   const exportWorkflow = () => {
