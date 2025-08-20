@@ -28,6 +28,11 @@ describe('NodeExecutionService', () => {
   beforeEach(() => {
     // Reset mocks before each test
     llmService.sendMessage.mockClear()
+    // Reset NodeExecutionService state
+    nodeExecutionService.stopExecution()
+    nodeExecutionService.executionContext = {}
+    nodeExecutionService.variables = {}
+    nodeExecutionService.clearLog()
   })
 
   it('should execute a simple Input -> LLM -> Output workflow in the correct order', async () => {

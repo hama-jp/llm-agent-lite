@@ -218,11 +218,11 @@ class NodeExecutionService {
 
   getNodeInputs(node, connections, nodes) {
     const inputs = {};
-    const nodeTypeDefinition = this.nodeTypes[node.type];
+    const nodeTypeDefinition = this.nodeTypes?.[node.type];
 
     if (!nodeTypeDefinition) {
       this.addLog('warn', `ノードタイプ定義が見つかりません: ${node.type}`, node.id);
-      return inputs;
+      // Continue to gather inputs with fallback keys instead of returning empty
     }
 
     const inputConnections = connections.filter(conn => conn.to.nodeId === node.id);
@@ -232,10 +232,14 @@ class NodeExecutionService {
       const sourceNode = nodes.find(n => n.id === conn.from.nodeId);
 
       if (sourceOutput !== undefined && sourceNode) {
-        const inputName = nodeTypeDefinition.inputs[conn.to.portIndex];
-        if (!inputName) {
-          this.addLog('warn', `定義にない入力ポートへの接続: ${conn.to.portIndex}`, node.id);
-          continue;
+        // Resolve input name with fallback to generic naming
+        let inputName;
+        if (nodeTypeDefinition?.inputs && nodeTypeDefinition.inputs[conn.to.portIndex]) {
+          inputName = nodeTypeDefinition.inputs[conn.to.portIndex];
+        } else if (conn.to?.name) {
+          inputName = conn.to.name;
+        } else {
+          inputName = `input${conn.to.portIndex}`;
         }
 
         let valueToAssign;
@@ -253,7 +257,11 @@ class NodeExecutionService {
         }
 
         if (valueToAssign !== undefined) {
-           inputs[inputName] = valueToAssign;
+          // Warn if the same input name is being assigned multiple times
+          if (inputs[inputName] !== undefined) {
+            this.addLog('warn', `入力 '${inputName}' が複数の接続から供給されています`, node.id);
+          }
+          inputs[inputName] = valueToAssign;
         }
       }
     }
@@ -374,7 +382,8 @@ class NodeExecutionService {
 
   async executeOutputNode(node, inputs) {
     const format = node.data.format || 'text'
-    const inputValue = inputs.input || ''
+    // Get the first available input value, or fallback to empty string
+    const inputValue = Object.values(inputs)[0] || ''
     switch (format) {
       case 'json':
         try {

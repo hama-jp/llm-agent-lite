@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
-    "test": "vitest",
+    "test": "vitest --run",
     "test:coverage": "vitest --coverage",
     "test:ui": "vitest --ui",
     "security:audit": "pnpm audit",
