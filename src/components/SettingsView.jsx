@@ -159,21 +159,30 @@ const SettingsView = () => {
           {/* モデル選択 */}
           <div className="space-y-2">
             <Label htmlFor="model">モデル</Label>
-            <Select
-              value={settings.model}
-              onValueChange={(value) => handleInputChange('model', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="モデルを選択" />
-              </SelectTrigger>
-              <SelectContent>
-                {(modelOptions[settings.provider] || []).map((model) => (
-                  <SelectItem key={model} value={model}>
-                    {model}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {(settings.provider === 'local' || settings.provider === 'custom') ? (
+              <Input
+                id="model"
+                value={settings.model}
+                onChange={(e) => handleInputChange('model', e.target.value)}
+                placeholder="モデル名を入力してください (例: llama2, mistral, custom-model)"
+              />
+            ) : (
+              <Select
+                value={settings.model}
+                onValueChange={(value) => handleInputChange('model', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="モデルを選択" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(modelOptions[settings.provider] || []).map((model) => (
+                    <SelectItem key={model} value={model}>
+                      {model}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* 温度設定 */}

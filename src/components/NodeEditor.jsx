@@ -16,9 +16,11 @@ import { debounce } from '../lib/utils.js'
 const nodeTypes = {
   input: { name: '入力', icon: '📥', color: 'bg-gradient-to-br from-orange-400 to-orange-600', borderColor: 'border-orange-300', textColor: 'text-white', inputs: [], outputs: ['output'], defaultData: { value: '', inputType: 'text' } },
   text_combiner: { name: 'テキスト結合', icon: '🔗', color: 'bg-gradient-to-br from-teal-400 to-teal-600', borderColor: 'border-teal-300', textColor: 'text-white', inputs: ['input1', 'input2', 'input3', 'input4'], outputs: ['output'], defaultData: {} },
-  llm: { name: 'LLM生成', icon: '🤖', color: 'bg-gradient-to-br from-blue-400 to-blue-600', borderColor: 'border-blue-300', textColor: 'text-white', inputs: ['input'], outputs: ['output'], defaultData: { prompt: 'あなたは優秀なアシスタントです。以下の入力に対して適切に回答してください。\n\n入力: {{input}}', temperature: 1.0, model: 'gpt-5-nano' } },
+  llm: { name: 'LLM生成', icon: '🤖', color: 'bg-gradient-to-br from-blue-400 to-blue-600', borderColor: 'border-blue-300', textColor: 'text-white', inputs: ['input'], outputs: ['output'], defaultData: { temperature: 1.0, model: 'gpt-5-nano' } },
   if: { name: 'If条件分岐', icon: '🔀', color: 'bg-gradient-to-br from-pink-400 to-pink-600', borderColor: 'border-pink-300', textColor: 'text-white', inputs: ['input'], outputs: ['true', 'false'], defaultData: { conditionType: 'llm', condition: '入力が肯定的な内容かどうか判断してください', variable: '', operator: '==', value: '', model: 'gpt-5-nano', temperature: 0.7 } },
   while: { name: 'While繰り返し', icon: '🔄', color: 'bg-gradient-to-br from-purple-400 to-purple-600', borderColor: 'border-purple-300', textColor: 'text-white', inputs: ['input', 'loop'], outputs: ['output', 'loop'], defaultData: { conditionType: 'variable', condition: '', variable: 'counter', operator: '<', value: '10', maxIterations: 100 } },
+  variable_set: { name: '変数設定', icon: '📝', color: 'bg-gradient-to-br from-amber-400 to-amber-600', borderColor: 'border-amber-300', textColor: 'text-white', inputs: ['input'], outputs: ['output'], defaultData: { variableName: '', value: '', useInput: false } },
+  variable_get: { name: '変数取得', icon: '📋', color: 'bg-gradient-to-br from-cyan-400 to-cyan-600', borderColor: 'border-cyan-300', textColor: 'text-white', inputs: [], outputs: ['output'], defaultData: { variableName: '' } },
   output: { name: '出力', icon: '📤', color: 'bg-gradient-to-br from-green-400 to-green-600', borderColor: 'border-green-300', textColor: 'text-white', inputs: ['input'], outputs: [], defaultData: { format: 'text', title: '結果', result: '' } }
 }
 
@@ -246,6 +248,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
       const currentSettings = llmService.loadSettings();
       defaultData.model = currentSettings.model;
       defaultData.temperature = currentSettings.temperature;
+      defaultData.provider = currentSettings.provider; // プロバイダーも追加
     }
 
     const newNode = {
@@ -260,12 +263,13 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
                 type === 'text_combiner' ? 210 : // 220 - 10
                 type === 'if' ? 180 : // 240 - 60
                 type === 'while' ? 220 : // 240 - 20
+                type === 'variable_set' ? 145 : // 120 + 25
                 120
       }, // カスタマイズサイズ
       data: { label: nodeType.name, ...defaultData }
     };
     setNodes(prev => [...prev, newNode]);
-  };
+  };;;;
 
   const updateNodePosition = (nodeId, position) => {
     setNodes(prev => prev.map(node => node.id === nodeId ? { ...node, position } : node));
@@ -387,29 +391,57 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
       if (node.type === 'output' && node.data.result) {
         return { ...node, data: { ...node.data, result: '' } };
       }
+      if (node.type === 'llm' && node.data.currentPrompt) {
+        return { ...node, data: { ...node.data, currentPrompt: '' } };
+      }
       return node;
     });
-  };
+  };;
 
   const processExecutionCompletion = () => {
     const finalContext = nodeExecutionService.executionContext;
+    const executionLog = nodeExecutionService.getExecutionLog();
     let newSelectedNode = null;
 
     setNodes(prevNodes => {
       const newNodes = prevNodes.map(node => {
+        // Output ノードの結果を更新
         if (node.type === 'output' && finalContext[node.id] !== undefined) {
           const updatedNode = { ...node, data: { ...node.data, result: String(finalContext[node.id]) } };
           if (selectedNode && selectedNode.id === node.id) newSelectedNode = updatedNode;
           return updatedNode;
         }
+        
+        // LLM ノードのプロンプト情報を更新
+        if (node.type === 'llm') {
+          // 実行ログからLLMノードのプロンプト情報を取得
+          const llmLogEntry = executionLog.find(log => 
+            log.nodeId === node.id && 
+            log.message.includes('LLMに送信するプロンプト') && 
+            log.data && log.data.prompt
+          );
+          
+          if (llmLogEntry) {
+            const updatedNode = { 
+              ...node, 
+              data: { 
+                ...node.data, 
+                currentPrompt: llmLogEntry.data.prompt 
+              } 
+            };
+            if (selectedNode && selectedNode.id === node.id) newSelectedNode = updatedNode;
+            return updatedNode;
+          }
+        }
+        
         return node;
       });
       return newNodes;
     });
 
     if (newSelectedNode) onSelectedNodeChange(newSelectedNode);
-    setDebugLog(nodeExecutionService.getExecutionLog());
-  };
+    setDebugLog(executionLog);
+  };;
 
   const handleRunAll = async () => {
     if (nodes.length === 0) return alert('実行するノードがありません');
@@ -571,6 +603,14 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
     }
   };
 
+  const handleNodeValueChange = useCallback((nodeId, newValue) => {
+    setNodes(prev => prev.map(node => 
+      node.id === nodeId 
+        ? { ...node, data: { ...node.data, value: newValue } }
+        : node
+    ));
+  }, []);
+
   const renderNode = useCallback((node) => {
     const nodeType = nodeTypes[node.type];
     if (!nodeType) return null;
@@ -609,10 +649,12 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
           ))}
           <div className="text-xs text-gray-700 bg-gray-50 p-2 rounded border">
             {node.type === 'input' && node.data.inputType !== 'text' && <div className="truncate">{node.data.value || '入力値を設定...'}</div>}
-            {node.type === 'llm' && <textarea className="w-full text-xs bg-transparent border-none focus:ring-0 resize-none" readOnly value={`プロンプト: ${node.data.prompt || ''}`} placeholder="プロンプト..." style={{ height: `${Math.max(100, (node.size?.height || 240) - 140)}px` }} />}
+            {node.type === 'llm' && <textarea className="w-full text-xs bg-transparent border-none focus:ring-0 resize-none" readOnly value={node.data.currentPrompt || '入力待ち...'} placeholder="LLMへの入力プロンプト..." style={{ height: `${Math.max(60, (node.size?.height || 240) - 140)}px` }} />}
             {node.type === 'if' && <div className="truncate">条件: {node.data.condition?.substring(0, 30)}...</div>}
             {node.type === 'while' && <div className="truncate">繰り返し: {node.data.variable} {node.data.operator} {node.data.value}</div>}
-            {node.type === 'input' && node.data.inputType === 'text' && <textarea className="w-full text-xs bg-transparent border-none focus:ring-0 resize-none" readOnly value={String(node.data.value || '')} placeholder="入力値..." style={{ height: `${Math.max(10, (node.size?.height || 168) - 110)}px` }} />}
+            {node.type === 'variable_set' && <div className="truncate">変数設定: {node.data.variableName} = {node.data.useInput ? '入力値' : node.data.value?.substring(0, 20) + '...'}</div>}
+            {node.type === 'variable_get' && <div className="truncate">変数取得: {node.data.variableName}</div>}
+            {node.type === 'input' && node.data.inputType === 'text' && <textarea className="w-full text-xs bg-transparent border-none focus:ring-0 resize-none" value={String(node.data.value || '')} onChange={(e) => handleNodeValueChange(node.id, e.target.value)} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} placeholder="入力値..." style={{ height: `${Math.max(10, (node.size?.height || 168) - 110)}px` }} />}
             {node.type === 'output' && <textarea className="w-full text-xs bg-transparent border-none focus:ring-0 resize-none" readOnly value={String(node.data.result || '')} placeholder="実行結果..." style={{ height: `${Math.max(10, (node.size?.height || 168) - 110)}px` }} />}
           </div>
           {nodeType.outputs.map((outputName, index) => (
@@ -637,12 +679,20 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
         )}
       </div>
     )
-  }, [selectedNode, executionState, isConnecting, connectionStart, handleNodeMouseDown, handleNodeClick, deleteNode, handlePortMouseUp, handlePortMouseDown]); // nodeTypesは外部定数のため依存配列から除外
+  }, [selectedNode, executionState, isConnecting, connectionStart, handleNodeMouseDown, handleNodeClick, deleteNode, handlePortMouseUp, handlePortMouseDown, handleNodeValueChange]); // nodeTypesは外部定数のため依存配列から除外
 
   const renderConnections = useCallback(() => {
     return connectionPaths.map((path, index) => {
       const { id, pathData, strokeColor, fromPortName, fromX, fromY } = path;
       const isSelected = selectedConnection === id;
+      
+      // 接続線が処理中かどうかを判定
+      const connection = connections.find(conn => conn.id === id);
+      const isProcessing = connection && 
+        executionState.running && 
+        (executionState.currentNodeId === connection.to.nodeId ||  // 現在のノードへの入力
+         executionState.executedNodeIds.has(connection.from.nodeId)); // 実行済みノードからの出力
+      
       return (
         <svg key={id || index} className="absolute z-10" style={{ left: 0, top: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}>
           <defs>
@@ -654,13 +704,13 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
           <g className="cursor-pointer" onClick={(e) => { e.stopPropagation(); setSelectedConnection(id); }} style={{ pointerEvents: 'all' }}>
             <path d={pathData} stroke="transparent" strokeWidth="20" fill="none" />
             <path d={pathData} stroke={isSelected ? '#e11d48' : `url(#gradient-${index})`} strokeWidth={isSelected ? 4 : 3} fill="none" filter={isSelected ? 'url(#glow-selected)' : `url(#glow-${index})`} markerEnd={isSelected ? 'url(#arrowhead-selected)' : `url(#arrowhead-${index})`} className="transition-all duration-200" />
-            {!isSelected && (<circle r="4" fill={strokeColor} className="opacity-80"><animateMotion dur="2s" repeatCount="indefinite" path={pathData} /></circle>)}
+            {!isSelected && isProcessing && (<circle r="4" fill={strokeColor} className="opacity-80"><animateMotion dur="2s" repeatCount="indefinite" path={pathData} /></circle>)}
           </g>
           {fromPortName !== 'output' && (<text x={fromX + 5} y={fromY - 8} className="text-xs font-medium fill-gray-600" textAnchor="start" style={{ pointerEvents: 'none' }}>{fromPortName}</text>)}
         </svg>
       )
     })
-  }, [connectionPaths, selectedConnection, setSelectedConnection]);
+  }, [connectionPaths, selectedConnection, setSelectedConnection, connections, executionState]);
 
   const renderDraggingLine = () => {
     if (!draggingLine) return null;
@@ -746,7 +796,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
                   )}
                   {executionResult.variables && Object.keys(executionResult.variables).length > 0 && (
                     <div className="mt-2">
-                      <div className="text-green-700 font-medium">実行変数:</div>
+                      <div className="text-green-700 font-medium">入力変数:</div>
                       <pre className="text-green-600 whitespace-pre-wrap text-xs">{JSON.stringify(executionResult.variables, null, 2)}</pre>
                     </div>
                   )}
@@ -760,7 +810,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
               {showDebugLog && debugLog.length > 0 && (
                 <div className="mt-3 border-t pt-3">
                   <h5 className="font-medium text-xs text-gray-700 mb-2">デバッグログ</h5>
-                  <div className="max-h-60 overflow-y-auto bg-gray-50 border rounded p-2 space-y-1">
+                  <div className="max-h-120 overflow-y-auto bg-gray-50 border rounded p-2 space-y-1">
                     {debugLog.map((log, index) => (
                       <div key={index} className="text-xs">
                         <div className="flex items-start space-x-2">

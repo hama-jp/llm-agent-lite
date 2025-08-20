@@ -207,6 +207,12 @@ class NodeExecutionService {
       case 'text_combiner':
         output = await this.executeTextCombinerNode(node, inputs)
         break
+      case 'variable_set':
+        output = await this.executeVariableSetNode(node, inputs)
+        break
+      case 'variable_get':
+        output = await this.executeVariableGetNode(node, inputs)
+        break
       default:
         throw new Error(`未知のノードタイプ: ${node.type}`)
     }
@@ -218,11 +224,10 @@ class NodeExecutionService {
     const orderedInputNames = this.nodeTypes[node.type]?.inputs || [];
     let combinedText = '';
 
+    // 単純に順番に文字列を結合
     for (const inputName of orderedInputNames) {
       const inputValue = inputs[inputName];
       if (inputValue !== undefined && inputValue !== null) {
-        // Since all node outputs are normalized to strings or simple types,
-        // we can safely convert to string here.
         combinedText += String(inputValue);
       }
     }
@@ -280,6 +285,18 @@ class NodeExecutionService {
         }
       }
     }
+    
+    // LLMノード専用の後処理：単一の入力を'input'キーで正規化
+    if (node.type === 'llm') {
+      const inputValues = Object.entries(inputs);
+      if (inputValues.length === 1 && !Object.prototype.hasOwnProperty.call(inputs, 'input')) {
+        // 単一の入力があるが、'input'キーではない場合
+        const [originalKey, value] = inputValues[0];
+        inputs.input = value;
+        this.addLog('info', `LLMノード: 入力 '${originalKey}' を 'input' として正規化`, node.id);
+      }
+    }
+    
     return inputs;
   }
 
@@ -295,20 +312,45 @@ class NodeExecutionService {
   }
 
   async executeLLMNode(node, inputs) {
-    const prompt = node.data.prompt || ''
     const temperature = node.data.temperature || 0.7
     const model = node.data.model
-    let finalPrompt = prompt
-    Object.entries(inputs).forEach(([key, value]) => {
-      finalPrompt = finalPrompt.replace(new RegExp(`{{${key}}}`, 'g'), value)
-    })
-    Object.entries(this.variables).forEach(([key, value]) => {
-      finalPrompt = finalPrompt.replace(new RegExp(`{{${key}}}`, 'g'), value)
-    })
+    const provider = node.data.provider || 'openai' // ノード固有のプロバイダー
+    
+    // 入力をそのままLLMに送信（プロンプト機能なし）
+    const inputValues = Object.values(inputs).filter(v => v !== undefined && v !== null);
+    if (inputValues.length === 0) {
+      throw new Error('LLMノードに入力がありません');
+    }
+    
+    // 最初の入力値をプロンプトとして使用
+    const finalPrompt = String(inputValues[0]);
+    
+    this.addLog('info', `LLMに送信するプロンプト: ${finalPrompt.substring(0, 100)}...`, node.id, { 
+      prompt: finalPrompt,
+      model,
+      temperature,
+      provider 
+    });
+    
     try {
-      const response = await llmService.sendMessage(finalPrompt, { temperature, model })
+      // 設定画面の情報を基本として、ノード固有のプロバイダーとモデル設定で上書き
+      // APIキーやbaseURLは設定画面の値を使用し、プロバイダーとモデルのみノード固有値を使用
+      const currentSettings = llmService.loadSettings();
+      const nodeSpecificOptions = {
+        provider,
+        model,
+        temperature,
+        // 設定画面の認証情報を継承
+        apiKey: currentSettings.apiKey,
+        baseUrl: currentSettings.baseUrl,
+        maxTokens: currentSettings.maxTokens
+      };
+      
+      const response = await llmService.sendMessage(finalPrompt, nodeSpecificOptions);
+      this.addLog('info', `LLMレスポンス: ${response.substring(0, 100)}...`, node.id, { response });
       return response
     } catch (error) {
+      this.addLog('error', `LLM実行エラー: ${error.message}`, node.id, { error: error.stack });
       throw new Error(`LLM実行エラー: ${error.message}`)
     }
   }
@@ -323,7 +365,21 @@ class NodeExecutionService {
       try {
         const model = node.data.model
         const temperature = node.data.temperature
-        const response = await llmService.sendMessage(prompt, { model, temperature })
+        const provider = node.data.provider || 'openai' // ノード固有のプロバイダー
+        
+        // 設定画面の情報を基本として、ノード固有のプロバイダー設定で上書き
+        const currentSettings = llmService.loadSettings();
+        const nodeSpecificOptions = {
+          provider,
+          model,
+          temperature,
+          // 設定画面の認証情報を継承
+          apiKey: currentSettings.apiKey,
+          baseUrl: currentSettings.baseUrl,
+          maxTokens: currentSettings.maxTokens
+        };
+        
+        const response = await llmService.sendMessage(prompt, nodeSpecificOptions)
         conditionResult = response.toLowerCase().includes('true')
       } catch (error) {
         throw new Error(`条件判断エラー: ${error.message}`)
@@ -442,6 +498,47 @@ class NodeExecutionService {
 
   isRunning() {
     return this.isExecuting
+  }
+
+  async executeVariableSetNode(node, inputs) {
+    const variableName = node.data.variableName || ''
+    if (!variableName) {
+      throw new Error('変数名が設定されていません')
+    }
+
+    let value
+    if (node.data.useInput) {
+      // 接続からの入力を使用
+      const inputValues = Object.values(inputs).filter(v => v !== undefined && v !== null);
+      if (inputValues.length === 0) {
+        throw new Error('変数設定ノードに入力がありません');
+      }
+      value = String(inputValues[0]);
+    } else {
+      // 直接入力された値を使用
+      value = node.data.value || ''
+    }
+
+    this.variables[variableName] = value
+    this.addLog('info', `変数 '${variableName}' に値を設定: ${value}`, node.id, { variableName, value })
+    
+    // パススルー: 入力値または設定値をそのまま出力
+    return node.data.useInput ? value : value
+  }
+
+  async executeVariableGetNode(node, inputs) {
+    const variableName = node.data.variableName || ''
+    if (!variableName) {
+      throw new Error('変数名が設定されていません')
+    }
+
+    const value = this.variables[variableName]
+    if (value === undefined) {
+      throw new Error(`変数 '${variableName}' が見つかりません`)
+    }
+
+    this.addLog('info', `変数 '${variableName}' の値を取得: ${value}`, node.id, { variableName, value })
+    return value
   }
 }
 
