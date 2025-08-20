@@ -1,0 +1,92 @@
+{
+  "id": "sample-03-control-flow",
+  "name": "03 - 条件分岐 (If)",
+  "nodes": [
+    {
+      "id": "input_topic",
+      "type": "input",
+      "position": { "x": 50, "y": 250 },
+      "size": { "width": 200, "height": 168 },
+      "data": {
+        "label": "トピック",
+        "value": "ReactのuseStateフック",
+        "inputType": "text"
+      }
+    },
+    {
+      "id": "if_1",
+      "type": "if",
+      "position": { "x": 300, "y": 250 },
+      "size": { "width": 240, "height": 180 },
+      "data": {
+        "label": "トピック判定",
+        "conditionType": "llm",
+        "condition": "入力されたトピックは技術的な内容（プログラミング、科学など）ですか？「はい」か「いいえ」で答えてください。",
+        "variable": "", "operator": "==", "value": "",
+        "model": "gpt-5-nano", "temperature": 1.0
+      }
+    },
+    {
+      "id": "llm_technical",
+      "type": "llm",
+      "position": { "x": 600, "y": 100 },
+      "size": { "width": 320, "height": 240 },
+      "data": {
+        "label": "技術的な説明",
+        "prompt": "あなたはプロのエンジニアです。以下のトピックについて、初心者にも分かりやすく技術的な解説をしてください。\n\nトピック: {{input}}",
+        "temperature": 1.0,
+        "model": "gpt-5-nano"
+      }
+    },
+    {
+      "id": "llm_creative",
+      "type": "llm",
+      "position": { "x": 600, "y": 400 },
+      "size": { "width": 320, "height": 240 },
+      "data": {
+        "label": "創造的なアイデア",
+        "prompt": "あなたは創造的な作家です。以下のトピックについて、面白い物語や詩を創作してください。\n\nトピック: {{input}}",
+        "temperature": 1.0,
+        "model": "gpt-5-nano"
+      }
+    },
+    {
+      "id": "output_1",
+      "type": "output",
+      "position": { "x": 980, "y": 250 },
+      "size": { "width": 220, "height": 180 },
+      "data": {
+        "label": "生成結果",
+        "format": "text", "title": "生成結果", "result": ""
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn_1",
+      "from": { "nodeId": "input_topic", "portIndex": 0 },
+      "to": { "nodeId": "if_1", "portIndex": 0 }
+    },
+    {
+      "id": "conn_2",
+      "from": { "nodeId": "if_1", "portIndex": 0 },
+      "to": { "nodeId": "llm_technical", "portIndex": 0 }
+    },
+    {
+      "id": "conn_3",
+      "from": { "nodeId": "if_1", "portIndex": 1 },
+      "to": { "nodeId": "llm_creative", "portIndex": 0 }
+    },
+    {
+      "id": "conn_4",
+      "from": { "nodeId": "llm_technical", "portIndex": 0 },
+      "to": { "nodeId": "output_1", "portIndex": 0 }
+    },
+    {
+      "id": "conn_5",
+      "from": { "nodeId": "llm_creative", "portIndex": 0 },
+      "to": { "nodeId": "output_1", "portIndex": 0 }
+    }
+  ],
+  "lastModified": "2024-07-29T00:00:00.000Z"
+}

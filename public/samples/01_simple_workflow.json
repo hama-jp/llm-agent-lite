@@ -1,0 +1,55 @@
+{
+  "id": "sample-01-simple",
+  "name": "01 - シンプルな入出力",
+  "nodes": [
+    {
+      "id": "input_1",
+      "type": "input",
+      "position": {
+        "x": 100,
+        "y": 150
+      },
+      "size": {
+        "width": 180,
+        "height": 168
+      },
+      "data": {
+        "label": "入力",
+        "value": "こんにちは、世界！",
+        "inputType": "text"
+      }
+    },
+    {
+      "id": "output_1",
+      "type": "output",
+      "position": {
+        "x": 400,
+        "y": 150
+      },
+      "size": {
+        "width": 180,
+        "height": 168
+      },
+      "data": {
+        "label": "出力",
+        "format": "text",
+        "title": "結果",
+        "result": ""
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn_1",
+      "from": {
+        "nodeId": "input_1",
+        "portIndex": 0
+      },
+      "to": {
+        "nodeId": "output_1",
+        "portIndex": 0
+      }
+    }
+  ],
+  "lastModified": "2024-07-29T00:00:00.000Z"
+}
