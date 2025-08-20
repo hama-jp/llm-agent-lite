@@ -20,9 +20,15 @@ class NodeExecutionService {
       level,
       message,
       nodeId,
-      data,
-      variables: { ...this.variables }
+      data: this.debugMode ? data : null, // デバッグ時のみデータ保存
+      variables: this.debugMode ? { ...this.variables } : null // デバッグ時のみ変数コピー
     }
+    
+    // ログサイズ制限（最大500エントリー）
+    if (this.executionLog.length >= 500) {
+      this.executionLog = this.executionLog.slice(-400); // 古い100エントリーを削除
+    }
+    
     this.executionLog.push(logEntry)
     if (this.debugMode) {
       console.log(`[${level}] ${message}`, data)
@@ -35,6 +41,15 @@ class NodeExecutionService {
 
   clearLog() {
     this.executionLog = []
+  }
+
+  // メモリ使用量最適化のためのクリーンアップ
+  cleanup() {
+    this.executionContext = {}
+    this.variables = {}
+    this.clearLog()
+    this.isExecuting = false
+    this.executor = null
   }
 
   startExecution(nodes, connections, inputData = {}, nodeTypes = {}) {
