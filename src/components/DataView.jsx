@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.j
 import workflowManagerService from '../services/workflowManagerService.js'
 
 const DataView = () => {
-  const [chatHistory, setChatHistory] = useState([])
+  const [_chatHistory, setChatHistory] = useState([])
   const [workflowData, setWorkflowData] = useState([])
 
   useEffect(() => {
