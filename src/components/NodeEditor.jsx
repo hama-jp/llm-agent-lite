@@ -156,11 +156,12 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
   }, [selectedConnection])
 
   const nodeTypes = {
-    input: { name: '入力', icon: '📥', color: 'bg-gradient-to-br from-orange-400 to-orange-600', borderColor: 'border-orange-300', textColor: 'text-white', inputs: [], outputs: ['output'], defaultData: { value: '' } },
+    input: { name: '入力', icon: '📥', color: 'bg-gradient-to-br from-orange-400 to-orange-600', borderColor: 'border-orange-300', textColor: 'text-white', inputs: [], outputs: ['output'], defaultData: { sourceType: 'property', value: '', fileContent: '', fileName: '' } },
+    output: { name: '出力', icon: '📤', color: 'bg-gradient-to-br from-green-400 to-green-600', borderColor: 'border-green-300', textColor: 'text-white', inputs: ['input'], outputs: [], defaultData: { outputType: 'display', filePath: 'output.txt', result: '' } },
+    'text-combiner': { name: 'テキスト結合', icon: '✨', color: 'bg-gradient-to-br from-yellow-400 to-yellow-600', borderColor: 'border-yellow-300', textColor: 'text-white', inputs: ['input1', 'input2', 'input3', 'input4'], outputs: ['output'], defaultData: {} },
     llm: { name: 'LLM生成', icon: '🤖', color: 'bg-gradient-to-br from-blue-400 to-blue-600', borderColor: 'border-blue-300', textColor: 'text-white', inputs: ['input'], outputs: ['output'], defaultData: { prompt: 'あなたは優秀なアシスタントです。以下の入力に対して適切に回答してください。\n\n入力: {{input}}', temperature: 1.0, model: 'gpt-5-nano' } },
     if: { name: 'If条件分岐', icon: '🔀', color: 'bg-gradient-to-br from-pink-400 to-pink-600', borderColor: 'border-pink-300', textColor: 'text-white', inputs: ['input'], outputs: ['true', 'false'], defaultData: { conditionType: 'llm', condition: '入力が肯定的な内容かどうか判断してください', variable: '', operator: '==', value: '', model: 'gpt-5-nano', temperature: 0.7 } },
     while: { name: 'While繰り返し', icon: '🔄', color: 'bg-gradient-to-br from-purple-400 to-purple-600', borderColor: 'border-purple-300', textColor: 'text-white', inputs: ['input', 'loop'], outputs: ['output', 'loop'], defaultData: { conditionType: 'variable', condition: '', variable: 'counter', operator: '<', value: '10', maxIterations: 100 } },
-    output: { name: '出力', icon: '📤', color: 'bg-gradient-to-br from-green-400 to-green-600', borderColor: 'border-green-300', textColor: 'text-white', inputs: ['input'], outputs: [], defaultData: { format: 'text', title: '結果', result: '' } }
   }
 
   const handleCanvasRightClick = (e) => {
@@ -273,27 +274,58 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
     const finalContext = nodeExecutionService.executionContext;
     let newSelectedNode = null;
 
-    setNodes(prevNodes => {
-      const newNodes = prevNodes.map(node => {
-        if (node.type === 'output' && finalContext[node.id] !== undefined) {
-          const updatedNode = { ...node, data: { ...node.data, result: String(finalContext[node.id]) } };
-          if (selectedNode && selectedNode.id === node.id) newSelectedNode = updatedNode;
-          return updatedNode;
+    const updatedNodes = nodes.map(node => {
+      if (finalContext[node.id] !== undefined) {
+        const result = String(finalContext[node.id]);
+        const updatedNode = { ...node, data: { ...node.data, result } };
+
+        if (node.type === 'output') {
+          if (node.data.outputType === 'file' && result) {
+            const blob = new Blob([result], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = node.data.filePath || 'output.txt';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          }
+          if (selectedNode && selectedNode.id === node.id) {
+            newSelectedNode = updatedNode;
+          }
         }
-        return node;
-      });
-      return newNodes;
+        return updatedNode;
+      }
+      return node;
     });
 
+    setNodes(updatedNodes);
     if (newSelectedNode) onSelectedNodeChange(newSelectedNode);
     setDebugLog(nodeExecutionService.getExecutionLog());
+  };
+
+  const handleFileChange = (e, nodeId) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const fileContent = event.target.result;
+      setNodes(prev => prev.map(n =>
+        n.id === nodeId
+          ? { ...n, data: { ...n.data, fileContent, fileName: file.name } }
+          : n
+      ));
+    };
+    reader.readAsText(file);
   };
 
   const handleRunAll = async () => {
     if (nodes.length === 0) return alert('実行するノードがありません');
     const inputNodes = nodes.filter(n => n.type === 'input');
     const inputData = Object.fromEntries(inputNodes.map(n => [n.id, n.data.value || '']));
-    const exec = nodeExecutionService.startExecution(nodes, connections, inputData);
+    const exec = nodeExecutionService.startExecution(nodes, connections, inputData, nodeTypes);
     setExecutor(exec);
     setExecutionState({ running: true, currentNodeId: null, executedNodeIds: new Set() });
     setExecutionResult(null);
@@ -444,11 +476,25 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
             </div>
           ))}
           <div className="text-xs text-gray-700 bg-gray-50 p-2 rounded border">
-            {node.type === 'input' && <div className="truncate">{node.data.value || '入力値を設定...'}</div>}
+            {node.type === 'input' && (
+              <div>
+                {node.data.sourceType === 'file' ? (
+                  <div className="truncate">
+                    <label htmlFor={`file-input-${node.id}`} className="text-blue-600 hover:underline cursor-pointer">
+                      {node.data.fileName || 'ファイルを選択...'}
+                    </label>
+                    <input id={`file-input-${node.id}`} type="file" className="hidden" onChange={(e) => handleFileChange(e, node.id)} accept=".txt" />
+                  </div>
+                ) : (
+                  <div className="truncate">{node.data.value || '入力値を設定...'}</div>
+                )}
+              </div>
+            )}
             {node.type === 'llm' && <div className="truncate">プロンプト: {node.data.prompt?.substring(0, 30)}...</div>}
             {node.type === 'if' && <div className="truncate">条件: {node.data.condition?.substring(0, 30)}...</div>}
             {node.type === 'while' && <div className="truncate">繰り返し: {node.data.variable} {node.data.operator} {node.data.value}</div>}
             {node.type === 'output' && <textarea className="w-full h-12 text-xs bg-transparent border-none focus:ring-0 resize-none" readOnly value={String(node.data.result || '')} placeholder="実行結果..." />}
+            {node.type === 'text-combiner' && <div className="truncate">結合されたテキスト</div>}
           </div>
           {nodeType.outputs.map((outputName, index) => (
             <div key={`output-${index}`} className="flex items-center justify-end">

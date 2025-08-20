@@ -8,6 +8,7 @@ class NodeExecutionService {
     this.variables = {}
     this.executionLog = []
     this.debugMode = false
+    this.nodeTypes = {}
   }
 
   setDebugMode(enabled) {
@@ -37,12 +38,13 @@ class NodeExecutionService {
     this.executionLog = []
   }
 
-  startExecution(nodes, connections, inputData = {}) {
+  startExecution(nodes, connections, inputData = {}, nodeTypes = {}) {
     if (this.isExecuting) {
       throw new Error('ワークフローが既に実行中です')
     }
 
     this.isExecuting = true
+    this.nodeTypes = nodeTypes
     this.executionContext = {}
     this.variables = { ...inputData }
     this.clearLog()
@@ -176,6 +178,12 @@ class NodeExecutionService {
       case 'input':
         output = await this.executeInputNode(node, inputs)
         break
+      case 'output':
+        output = await this.executeOutputNode(node, inputs)
+        break
+      case 'text-combiner':
+        output = await this.executeTextCombinerNode(node, inputs)
+        break
       case 'llm':
         output = await this.executeLLMNode(node, inputs)
         break
@@ -184,9 +192,6 @@ class NodeExecutionService {
         break
       case 'while':
         output = await this.executeWhileNode(node, inputs, nodes, connections)
-        break
-      case 'output':
-        output = await this.executeOutputNode(node, inputs)
         break
       default:
         throw new Error(`未知のノードタイプ: ${node.type}`)
@@ -197,6 +202,9 @@ class NodeExecutionService {
 
   getNodeInputs(node, connections, nodes) {
     const inputs = {};
+    const nodeType = this.nodeTypes[node.type];
+    if (!nodeType) return inputs;
+
     connections
       .filter(conn => conn.to.nodeId === node.id)
       .forEach(conn => {
@@ -204,13 +212,10 @@ class NodeExecutionService {
         const sourceNode = nodes.find(n => n.id === conn.from.nodeId);
 
         if (sourceOutput !== undefined && sourceNode) {
-          // NOTE: This logic is simplified due to the service not having node type definitions.
-          // It assumes the primary input is named 'input'.
-          const inputName = 'input';
+          const inputName = nodeType.inputs[conn.to.portIndex];
+          if (!inputName) return;
 
           if (sourceNode.type === 'if') {
-            // 'if' node output is an object { condition, true, false }
-            // Port 0 is 'true', Port 1 is 'false'
             if (conn.from.portIndex === 0 && sourceOutput.condition) {
               inputs[inputName] = sourceOutput.true;
             } else if (conn.from.portIndex === 1 && !sourceOutput.condition) {
@@ -225,9 +230,14 @@ class NodeExecutionService {
   }
 
   async executeInputNode(node, inputs) {
-    const value = node.data.value || ''
-    this.variables[node.id] = value
-    return value
+    if (node.data.sourceType === 'file') {
+      const value = node.data.fileContent || '';
+      this.variables[node.id] = value;
+      return value;
+    }
+    const value = node.data.value || '';
+    this.variables[node.id] = value;
+    return value;
   }
 
   async executeLLMNode(node, inputs) {
@@ -331,21 +341,21 @@ class NodeExecutionService {
     }
   }
 
-  async executeOutputNode(node, inputs) {
-    const format = node.data.format || 'text'
-    const inputValue = inputs.input || ''
-    switch (format) {
-      case 'json':
-        try {
-          return JSON.stringify({ output: inputValue }, null, 2)
-        } catch (error) {
-          return inputValue
-        }
-      case 'markdown':
-        return `# 出力結果\n\n${inputValue}`
-      default:
-        return inputValue
+  async executeTextCombinerNode(node, inputs) {
+    const nodeType = this.nodeTypes[node.type];
+    if (!nodeType) return '';
+
+    let combinedText = '';
+    for (const inputName of nodeType.inputs) {
+      if (inputs[inputName] !== undefined && inputs[inputName] !== null) {
+        combinedText += String(inputs[inputName]);
+      }
     }
+    return combinedText;
+  }
+
+  async executeOutputNode(node, inputs) {
+    return inputs.input || ''
   }
 
   evaluateCondition(leftValue, operator, rightValue) {

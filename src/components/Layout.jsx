@@ -16,7 +16,56 @@ const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
       <h3 className="font-semibold mb-4 text-sm">ノードプロパティ</h3>
       <div className="space-y-4">
         <div><label className="block text-sm font-medium mb-1">ノード名</label><input type="text" value={editingNode.data.label} onChange={(e) => handleDataChange({ label: e.target.value })} className="w-full px-3 py-2 border rounded-md" /></div>
-        {editingNode.type === 'input' && ( <><div><label className="block text-sm font-medium mb-1">入力値</label><textarea value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="実行時の入力値を設定します" /></div></> )}
+        {editingNode.type === 'input' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium mb-1">入力タイプ</label>
+              <select value={editingNode.data.sourceType || 'property'} onChange={(e) => handleDataChange({ sourceType: e.target.value })} className="w-full px-3 py-2 border rounded-md">
+                <option value="property">プロパティ</option>
+                <option value="file">ファイル</option>
+              </select>
+            </div>
+            {editingNode.data.sourceType === 'file' ? (
+              <div>
+                <label className="block text-sm font-medium mb-1">入力ファイル</label>
+                <div className="w-full px-3 py-2 border rounded-md bg-gray-100">
+                  {editingNode.data.fileName || 'ファイルが選択されていません'}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium mb-1">入力値</label>
+                <textarea value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="実行時の入力値を設定します" />
+              </div>
+            )}
+          </>
+        )}
+        {editingNode.type === 'output' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium mb-1">出力タイプ</label>
+              <select value={editingNode.data.outputType || 'display'} onChange={(e) => handleDataChange({ outputType: e.target.value })} className="w-full px-3 py-2 border rounded-md">
+                <option value="display">表示</option>
+                <option value="file">ファイル</option>
+              </select>
+            </div>
+            {editingNode.data.outputType === 'file' && (
+              <div>
+                <label className="block text-sm font-medium mb-1">ファイルパス</label>
+                <input type="text" value={editingNode.data.filePath || ''} onChange={(e) => handleDataChange({ filePath: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="output.txt" />
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium mb-1">実行結果</label>
+              <textarea value={String(editingNode.data.result || '')} readOnly className="w-full px-3 py-2 border rounded-md bg-gray-100" rows={5} />
+            </div>
+          </>
+        )}
+        {editingNode.type === 'text-combiner' && (
+          <div>
+            <p className="text-sm text-gray-600">このノードには設定可能なプロパティはありません。入力を接続してください。</p>
+          </div>
+        )}
         {editingNode.type === 'llm' && (
           <>
             <div><label className="block text-sm font-medium mb-1">プロンプト</label><textarea value={editingNode.data.prompt || ''} onChange={(e) => handleDataChange({ prompt: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={5} placeholder="プロンプトを入力してください" /></div>
@@ -26,7 +75,6 @@ const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
         )}
         {editingNode.type === 'if' && ( <><div><label className="block text-sm font-medium mb-1">条件タイプ</label><select value={editingNode.data.conditionType || 'llm'} onChange={(e) => handleDataChange({ conditionType: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="llm">LLM判断</option><option value="variable">変数比較</option></select></div>{editingNode.data.conditionType === 'llm' ? (<><div><label className="block text-sm font-medium mb-1">判断条件</label><textarea value={editingNode.data.condition || ''} onChange={(e) => handleDataChange({ condition: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="LLMに判断させる条件を入力" /></div><div><label className="block text-sm font-medium mb-1">Temperature</label><input type="number" value={editingNode.data.temperature || 0.7} onChange={(e) => handleDataChange({ temperature: parseFloat(e.target.value) })} className="w-full px-3 py-2 border rounded-md" min="0" max="2" step="0.1" /></div><div><label className="block text-sm font-medium mb-1">Model</label><select value={editingNode.data.model || 'gpt-5-nano'} onChange={(e) => handleDataChange({ model: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="gpt-5">gpt-5</option><option value="gpt-5-mini">gpt-5-mini</option><option value="gpt-5-nano">gpt-5-nano</option></select></div></>) : (<><div><label className="block text-sm font-medium mb-1">変数名</label><input type="text" value={editingNode.data.variable || ''} onChange={(e) => handleDataChange({ variable: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する変数名" /></div><div><label className="block text-sm font-medium mb-1">演算子</label><select value={editingNode.data.operator || '=='} onChange={(e) => handleDataChange({ operator: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="==">==(等しい)</option><option value="!=">!=(等しくない)</option><option value="<">&lt;(より小さい)</option><option value="<=">&lt;=(以下)</option><option value=">">&gt;(より大きい)</option><option value=">=">&gt;=(以上)</option></select></div><div><label className="block text-sm font-medium mb-1">比較値</label><input type="text" value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する値" /></div></>)}</> )}
         {editingNode.type === 'while' && ( <><div><label className="block text-sm font-medium mb-1">条件タイプ</label><select value={editingNode.data.conditionType || 'variable'} onChange={(e) => handleDataChange({ conditionType: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="variable">変数比較</option><option value="llm">LLM判断</option></select></div>{editingNode.data.conditionType === 'variable' ? (<><div><label className="block text-sm font-medium mb-1">変数名</label><input type="text" value={editingNode.data.variable || ''} onChange={(e) => handleDataChange({ variable: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する変数名" /></div><div><label className="block text-sm font-medium mb-1">演算子</label><select value={editingNode.data.operator || '<'} onChange={(e) => handleDataChange({ operator: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="==">==(等しい)</option><option value="!=">!=(等しくない)</option><option value="<">&lt;(より小さい)</option><option value="<=">&lt;=(以下)</option><option value=">">&gt;(より大きい)</option><option value=">=">&gt;=(以上)</option></select></div><div><label className="block text-sm font-medium mb-1">比較値</label><input type="text" value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する値" /></div></>) : (<div><label className="block text-sm font-medium mb-1">継続条件</label><textarea value={editingNode.data.condition || ''} onChange={(e) => handleDataChange({ condition: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="繰り返しを継続する条件を入力" /></div>)}<div><label className="block text-sm font-medium mb-1">最大繰り返し回数</label><input type="number" value={editingNode.data.maxIterations || 100} onChange={(e) => handleDataChange({ maxIterations: parseInt(e.target.value) })} className="w-full px-3 py-2 border rounded-md" min="1" max="1000" /></div></> )}
-        {editingNode.type === 'output' && ( <><div><label className="block text-sm font-medium mb-1">出力形式</label><select value={editingNode.data.format || 'text'} onChange={(e) => handleDataChange({ format: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="text">テキスト</option><option value="json">JSON</option><option value="markdown">Markdown</option></select></div><div><label className="block text-sm font-medium mb-1">実行結果</label><textarea value={String(editingNode.data.result || '')} readOnly className="w-full px-3 py-2 border rounded-md bg-gray-100" rows={5} /></div></> )}
       </div>
     </div>
   )
