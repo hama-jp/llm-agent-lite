@@ -69,8 +69,14 @@ describe('NodeEditor', () => {
   });
 
   it('should render without crashing', () => {
+    const mockOnSelectedNodeChange = vi.fn();
+    const mockOnEditingNodeChange = vi.fn();
+
     act(() => {
-      root.render(<NodeEditor />);
+      root.render(<NodeEditor
+        onSelectedNodeChange={mockOnSelectedNodeChange}
+        onEditingNodeChange={mockOnEditingNodeChange}
+      />);
     });
     const topDiv = container.querySelector('.flex.h-full');
     expect(topDiv).not.toBeNull();

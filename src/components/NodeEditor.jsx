@@ -11,12 +11,10 @@ import llmService from '../services/llmService.js'
 import workflowManagerService from '../services/workflowManagerService.js'
 import { debounce } from '../lib/utils.js'
 
-const NodeEditor = () => {
+const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditingNodeChange }) => {
   const [currentWorkflow, setCurrentWorkflow] = useState(null);
   const [nodes, setNodes] = useState([])
   const [connections, setConnections] = useState([])
-  const [selectedNode, setSelectedNode] = useState(null)
-  const [editingNode, setEditingNode] = useState(null)
   const [draggedNode, setDraggedNode] = useState(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [isConnecting, setIsConnecting] = useState(false)
@@ -36,8 +34,6 @@ const NodeEditor = () => {
   const canvasRef = useRef(null)
   const nodeRefs = useRef(new Map())
   const portRefs = useRef(new Map())
-  const editingNodeRef = useRef();
-  editingNodeRef.current = editingNode;
   const renameInputRef = useRef(null);
 
   // Initial load
@@ -103,11 +99,11 @@ const NodeEditor = () => {
 
   useEffect(() => {
     if (selectedNode) {
-      setEditingNode({ ...selectedNode });
+      onEditingNodeChange({ ...selectedNode });
     } else {
-      setEditingNode(null);
+      onEditingNodeChange(null);
     }
-  }, [selectedNode?.id]);
+  }, [selectedNode?.id, onEditingNodeChange]);
 
   useLayoutEffect(() => {
     const newConnectionPaths = connections.map((conn) => {
@@ -208,23 +204,6 @@ const NodeEditor = () => {
     setNodes(prev => prev.map(node => node.id === nodeId ? { ...node, position } : node));
   };
 
-  const debouncedSetNodes = useMemo(() => debounce(setNodes, 500), []);
-
-  useEffect(() => {
-    if (editingNode) {
-      const updater = (prevNodes) => prevNodes.map(n =>
-        n.id === editingNode.id ? { ...n, data: editingNode.data } : n
-      );
-      debouncedSetNodes(updater);
-    }
-  }, [editingNode, debouncedSetNodes]);
-
-  const handleDataChange = (partialData) => {
-    if (!editingNode) return;
-    const newEditingNodeData = { ...editingNode.data, ...partialData };
-    setEditingNode(prev => ({ ...prev, data: newEditingNodeData }));
-  };
-
   const handleNodeMouseDown = (e, node) => {
     if (e.target.classList.contains('port')) return;
     setDraggedNode(node);
@@ -236,7 +215,7 @@ const NodeEditor = () => {
 
   const handleNodeClick = (e, node) => {
     e.stopPropagation();
-    setSelectedNode(node);
+    onSelectedNodeChange(node);
     setSelectedConnection(null);
   };
 
@@ -306,7 +285,7 @@ const NodeEditor = () => {
       return newNodes;
     });
 
-    if (newSelectedNode) setSelectedNode(newSelectedNode);
+    if (newSelectedNode) onSelectedNodeChange(newSelectedNode);
     setDebugLog(nodeExecutionService.getExecutionLog());
   };
 
@@ -432,7 +411,7 @@ const NodeEditor = () => {
     setNodes(prev => prev.filter(node => node.id !== nodeId));
     setConnections(prev => prev.filter(conn => conn.from.nodeId !== nodeId && conn.to.nodeId !== nodeId));
     if (selectedNode?.id === nodeId) {
-      setSelectedNode(null);
+      onSelectedNodeChange(null);
     }
   };
 
@@ -555,7 +534,7 @@ const NodeEditor = () => {
           <Button onClick={handleStepForward} disabled={executionState.running && executor} size="sm" variant="outline" className="gap-1.5"><StepForward className="h-4 w-4" />ステップ</Button>
           <Button onClick={handleResetExecution} disabled={!executionState.running} size="sm" variant="destructive" className="gap-1.5"><RotateCcw className="h-4 w-4" />リセット</Button>
         </div>
-        <div ref={canvasRef} className="w-full h-full relative cursor-crosshair" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onContextMenu={handleCanvasRightClick} onClick={(e) => { closeContextMenu(); setSelectedNode(null); setSelectedConnection(null) }} style={{ backgroundImage: 'radial-gradient(circle, #ccc 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+        <div ref={canvasRef} className="w-full h-full relative cursor-crosshair" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onContextMenu={handleCanvasRightClick} onClick={(e) => { closeContextMenu(); onSelectedNodeChange(null); setSelectedConnection(null) }} style={{ backgroundImage: 'radial-gradient(circle, #ccc 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
           {renderConnections()}
           {renderDraggingLine()}
           {nodes.map(renderNode)}
@@ -568,28 +547,11 @@ const NodeEditor = () => {
         </div>
       </div>
       <div className="w-80 bg-white border-l overflow-y-auto">
-        {editingNode ? (
-          <div className="p-4">
-            <h3 className="font-semibold mb-4 text-sm">ノードプロパティ</h3>
-            <div className="space-y-4">
-              <div><label className="block text-sm font-medium mb-1">ノード名</label><input type="text" value={editingNode.data.label} onChange={(e) => handleDataChange({ label: e.target.value })} className="w-full px-3 py-2 border rounded-md" /></div>
-              {editingNode.type === 'input' && ( <><div><label className="block text-sm font-medium mb-1">入力値</label><textarea value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="実行時の入力値を設定します" /></div></> )}
-              {editingNode.type === 'llm' && (
-                <>
-                  <div><label className="block text-sm font-medium mb-1">プロンプト</label><textarea value={editingNode.data.prompt || ''} onChange={(e) => handleDataChange({ prompt: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={5} placeholder="プロンプトを入力してください" /></div>
-                  <div><label className="block text-sm font-medium mb-1">Temperature</label><input type="number" value={editingNode.data.temperature || 0.7} onChange={(e) => handleDataChange({ temperature: parseFloat(e.target.value) })} className="w-full px-3 py-2 border rounded-md" min="0" max="2" step="0.1" /></div>
-                  <div><label className="block text-sm font-medium mb-1">Model</label><select value={editingNode.data.model || 'gpt-5-nano'} onChange={(e) => handleDataChange({ model: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="gpt-5">gpt-5</option><option value="gpt-5-mini">gpt-5-mini</option><option value="gpt-5-nano">gpt-5-nano</option></select></div>
-                </>
-              )}
-              {editingNode.type === 'if' && ( <><div><label className="block text-sm font-medium mb-1">条件タイプ</label><select value={editingNode.data.conditionType || 'llm'} onChange={(e) => handleDataChange({ conditionType: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="llm">LLM判断</option><option value="variable">変数比較</option></select></div>{editingNode.data.conditionType === 'llm' ? (<><div><label className="block text-sm font-medium mb-1">判断条件</label><textarea value={editingNode.data.condition || ''} onChange={(e) => handleDataChange({ condition: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="LLMに判断させる条件を入力" /></div><div><label className="block text-sm font-medium mb-1">Temperature</label><input type="number" value={editingNode.data.temperature || 0.7} onChange={(e) => handleDataChange({ temperature: parseFloat(e.target.value) })} className="w-full px-3 py-2 border rounded-md" min="0" max="2" step="0.1" /></div><div><label className="block text-sm font-medium mb-1">Model</label><select value={editingNode.data.model || 'gpt-5-nano'} onChange={(e) => handleDataChange({ model: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="gpt-5">gpt-5</option><option value="gpt-5-mini">gpt-5-mini</option><option value="gpt-5-nano">gpt-5-nano</option></select></div></>) : (<><div><label className="block text-sm font-medium mb-1">変数名</label><input type="text" value={editingNode.data.variable || ''} onChange={(e) => handleDataChange({ variable: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する変数名" /></div><div><label className="block text-sm font-medium mb-1">演算子</label><select value={editingNode.data.operator || '=='} onChange={(e) => handleDataChange({ operator: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="==">==(等しい)</option><option value="!=">!=(等しくない)</option><option value="<">&lt;(より小さい)</option><option value="<=">&lt;=(以下)</option><option value=">">&gt;(より大きい)</option><option value=">=">&gt;=(以上)</option></select></div><div><label className="block text-sm font-medium mb-1">比較値</label><input type="text" value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する値" /></div></>)}</> )}
-              {editingNode.type === 'while' && ( <><div><label className="block text-sm font-medium mb-1">条件タイプ</label><select value={editingNode.data.conditionType || 'variable'} onChange={(e) => handleDataChange({ conditionType: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="variable">変数比較</option><option value="llm">LLM判断</option></select></div>{editingNode.data.conditionType === 'variable' ? (<><div><label className="block text-sm font-medium mb-1">変数名</label><input type="text" value={editingNode.data.variable || ''} onChange={(e) => handleDataChange({ variable: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する変数名" /></div><div><label className="block text-sm font-medium mb-1">演算子</label><select value={editingNode.data.operator || '<'} onChange={(e) => handleDataChange({ operator: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="==">==(等しい)</option><option value="!=">!=(等しくない)</option><option value="<">&lt;(より小さい)</option><option value="<=">&lt;=(以下)</option><option value=">">&gt;(より大きい)</option><option value=">=">&gt;=(以上)</option></select></div><div><label className="block text-sm font-medium mb-1">比較値</label><input type="text" value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="比較する値" /></div></>) : (<div><label className="block text-sm font-medium mb-1">継続条件</label><textarea value={editingNode.data.condition || ''} onChange={(e) => handleDataChange({ condition: e.target.value })} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="繰り返しを継続する条件を入力" /></div>)}<div><label className="block text-sm font-medium mb-1">最大繰り返し回数</label><input type="number" value={editingNode.data.maxIterations || 100} onChange={(e) => handleDataChange({ maxIterations: parseInt(e.target.value) })} className="w-full px-3 py-2 border rounded-md" min="1" max="1000" /></div></> )}
-              {editingNode.type === 'output' && ( <><div><label className="block text-sm font-medium mb-1">出力形式</label><select value={editingNode.data.format || 'text'} onChange={(e) => handleDataChange({ format: e.target.value })} className="w-full px-3 py-2 border rounded-md"><option value="text">テキスト</option><option value="json">JSON</option><option value="markdown">Markdown</option></select></div><div><label className="block text-sm font-medium mb-1">実行結果</label><textarea value={String(editingNode.data.result || '')} readOnly className="w-full px-3 py-2 border rounded-md bg-gray-100" rows={5} /></div></> )}
-            </div>
-          </div>
-        ) : (
-          <div className="p-4"><div className="text-center text-gray-500 py-8"><div className="text-4xl mb-2">🎯</div><div className="text-sm">ノードを選択してください</div><div className="text-xs mt-1">右クリックでノードを追加できます</div></div></div>
+        {/* This panel is now empty, it will be moved to Layout.jsx */}
+        {!editingNode && (
+            <div className="p-4"><div className="text-center text-gray-500 py-8"><div className="text-4xl mb-2">🎯</div><div className="text-sm">ノードを選択してください</div><div className="text-xs mt-1">右クリックでノードを追加できます</div></div></div>
         )}
-        {executionResult && (
+         {executionResult && (
           <div className="p-4 border-t">
             <div className="space-y-2">
               <div className="flex items-center justify-between"><h4 className="font-medium text-sm">実行結果</h4><button onClick={() => setShowDebugLog(!showDebugLog)} className="text-xs text-blue-600 hover:text-blue-800 underline">{showDebugLog ? 'ログを隠す' : 'デバッグログ'}</button></div>
