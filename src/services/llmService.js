@@ -30,7 +30,7 @@ class LLMService {
     }
 
     try {
-      const response = await this.sendMessage('テスト', { isTest: true })
+      await this.sendMessage('テスト', { isTest: true })
       return { success: true, message: 'API接続テストが成功しました' }
     } catch (error) {
       throw new Error(`API接続に失敗しました: ${error.message}`)

@@ -268,7 +268,7 @@ class NodeExecutionService {
     return inputs;
   }
 
-  async executeInputNode(node, inputs) {
+  async executeInputNode(node) {
     if (node.data.inputType === 'file') {
       const value = node.data.fileContent || '';
       this.variables[node.id] = value;
@@ -329,7 +329,7 @@ class NodeExecutionService {
     }
   }
 
-  async executeWhileNode(node, inputs, nodes, connections) {
+  async executeWhileNode(node, inputs) {
     const conditionType = node.data.conditionType || 'variable'
     const maxIterations = node.data.maxIterations || 100
     const results = []
@@ -388,7 +388,7 @@ class NodeExecutionService {
       case 'json':
         try {
           return JSON.stringify({ output: inputValue }, null, 2)
-        } catch (error) {
+        } catch {
           return inputValue
         }
       case 'markdown':

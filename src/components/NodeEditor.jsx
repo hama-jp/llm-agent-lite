@@ -399,7 +399,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
           } else {
             alert('無効なワークフローファイルです');
           }
-        } catch (err) {
+        } catch {
           alert('ファイルの読み込みに失敗しました');
         }
       };
@@ -535,7 +535,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
           <Button onClick={handleStepForward} disabled={executionState.running && executor} size="sm" variant="outline" className="gap-1.5"><StepForward className="h-4 w-4" />ステップ</Button>
           <Button onClick={handleResetExecution} disabled={!executionState.running} size="sm" variant="destructive" className="gap-1.5"><RotateCcw className="h-4 w-4" />リセット</Button>
         </div>
-        <div ref={canvasRef} className="w-full h-full relative cursor-crosshair" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onContextMenu={handleCanvasRightClick} onClick={(e) => { closeContextMenu(); onSelectedNodeChange(null); setSelectedConnection(null) }} style={{ backgroundImage: 'radial-gradient(circle, #ccc 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+        <div ref={canvasRef} className="w-full h-full relative cursor-crosshair" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onContextMenu={handleCanvasRightClick} onClick={() => { closeContextMenu(); onSelectedNodeChange(null); setSelectedConnection(null) }} style={{ backgroundImage: 'radial-gradient(circle, #ccc 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
           {renderConnections()}
           {renderDraggingLine()}
           {nodes.map(renderNode)}
