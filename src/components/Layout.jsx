@@ -1,6 +1,7 @@
-import { useState } from 'react'
+
 import { Menu, Settings, MessageSquare, Workflow, Database, X } from 'lucide-react'
 import { Button } from '@/components/ui/button.jsx'
+import { useStore, selectSidebarOpen, useUIActions } from '../store/index.js'
 
 const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
   if (!editingNode) return null;
@@ -146,7 +147,8 @@ const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
 
 
 const Layout = ({ children, currentView, onViewChange, editingNode, onEditingNodeChange }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const sidebarOpen = useStore(selectSidebarOpen)
+  const { setSidebarOpen } = useUIActions()
 
   const menuItems = [
     { id: 'workflow', label: 'ワークフロー', icon: Workflow },

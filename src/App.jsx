@@ -1,25 +1,17 @@
-import { useState, useCallback } from 'react'
 import Layout from './components/Layout.jsx'
 import ChatView from './components/ChatView.jsx'
 import WorkflowView from './components/WorkflowView.jsx'
 import DataView from './components/DataView.jsx'
 import SettingsView from './components/SettingsView.jsx'
+import { useStore, selectCurrentView, selectSelectedNode, selectEditingNode, useUIActions } from './store/index.js'
 import './App.css'
 
 function App() {
-  const [currentView, setCurrentView] = useState('workflow') // Default to workflow for now
-
-  // State lifted from NodeEditor
-  const [selectedNode, setSelectedNode] = useState(null)
-  const [editingNode, setEditingNode] = useState(null)
-
-  const handleSelectedNodeChange = useCallback((node) => {
-    setSelectedNode(node);
-  }, []);
-
-  const handleEditingNodeChange = useCallback((node) => {
-    setEditingNode(node);
-  }, []);
+  // Zustandストアから状態とアクションを取得
+  const currentView = useStore(selectCurrentView)
+  const selectedNode = useStore(selectSelectedNode)
+  const editingNode = useStore(selectEditingNode)
+  const { setCurrentView, setSelectedNode, setEditingNode } = useUIActions()
 
   const renderCurrentView = () => {
     switch (currentView) {
@@ -28,9 +20,9 @@ function App() {
       case 'workflow':
         return <WorkflowView
                   selectedNode={selectedNode}
-                  onSelectedNodeChange={handleSelectedNodeChange}
+                  onSelectedNodeChange={setSelectedNode}
                   editingNode={editingNode}
-                  onEditingNodeChange={handleEditingNodeChange}
+                  onEditingNodeChange={setEditingNode}
                 />
       case 'data':
         return <DataView />
@@ -39,9 +31,9 @@ function App() {
       default:
         return <WorkflowView
                   selectedNode={selectedNode}
-                  onSelectedNodeChange={handleSelectedNodeChange}
+                  onSelectedNodeChange={setSelectedNode}
                   editingNode={editingNode}
-                  onEditingNodeChange={handleEditingNodeChange}
+                  onEditingNodeChange={setEditingNode}
                 />
     }
   }
@@ -51,7 +43,7 @@ function App() {
       currentView={currentView} 
       onViewChange={setCurrentView}
       editingNode={editingNode}
-      onEditingNodeChange={handleEditingNodeChange}
+      onEditingNodeChange={setEditingNode}
     >
       {renderCurrentView()}
     </Layout>

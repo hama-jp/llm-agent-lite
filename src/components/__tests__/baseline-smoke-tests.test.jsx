@@ -192,9 +192,8 @@ describe('Baseline Smoke Tests - 現状の動作確認', () => {
 
   describe('State Management Baseline', () => {
     it('App should handle view state correctly', () => {
-      let appInstance;
       act(() => {
-        root.render(<App ref={(ref) => { appInstance = ref; }} />);
+        root.render(<App />);
       });
       
       // 基本的なレンダリング確認
