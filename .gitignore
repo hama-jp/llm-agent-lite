@@ -3,6 +3,7 @@ dist/
 
 # Dependencies
 node_modules/
+.pnpm-store/
 
 # Logs
 npm-debug.log*
@@ -37,9 +38,6 @@ coverage/
 # nyc test coverage
 .nyc_output
 
-# Dependency directories
-.pnpm-store/
-
 # Optional npm cache directory
 .npm
 
@@ -52,5 +50,6 @@ coverage/
 # Temporary folders
 tmp/
 temp/
-node_modules/
+
+# Serena directory
 .serena/

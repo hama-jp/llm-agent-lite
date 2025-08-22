@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Download, Upload, Trash2, FileText, MessageSquare, Workflow } from 'lucide-react'
+import { Download, Upload, Trash2, FileText, MessageSquare, Workflow, History } from 'lucide-react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
 import workflowManagerService from '../services/workflowManagerService.js'
+import logService from '../services/logService.js'
 
 const DataView = () => {
   const [_chatHistory, setChatHistory] = useState([])
@@ -130,12 +131,26 @@ const DataView = () => {
     }
   }
 
+  const handleClearExecutionLogs = async () => {
+    if (confirm('すべての実行履歴を削除しますか？この操作は取り消せません。')) {
+      try {
+        await logService.clearAllLogs()
+        alert('実行履歴が削除されました')
+      } catch (error) {
+        console.error('実行履歴の削除に失敗しました:', error)
+        alert('実行履歴の削除に失敗しました')
+      }
+    }
+  }
+
   const handleClearAllData = () => {
     if (confirm('すべてのデータを削除しますか？この操作は取り消せません。')) {
       localStorage.removeItem('llm-agent-chat-history')
       localStorage.removeItem('llm-agent-workflows')
       localStorage.removeItem('llm-agent-current-workflow-id')
       localStorage.removeItem('llm-agent-settings')
+      // 実行履歴も削除
+      logService.clearAllLogs().catch(console.error)
       loadData()
       alert('すべてのデータが削除されました')
     }
@@ -231,6 +246,10 @@ const DataView = () => {
               <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
                 <div><h4 className="font-medium">ローカルストレージ使用量</h4><p className="text-sm text-gray-600">設定やデータの保存に使用</p></div>
                 <Badge variant="outline">{calculateStorageSize()}</Badge>
+              </div>
+              <div className="flex justify-between items-center p-4 bg-yellow-50 rounded-lg">
+                <div><h4 className="font-medium text-yellow-800">実行履歴削除</h4><p className="text-sm text-yellow-600">ワークフローの実行履歴をすべて削除</p></div>
+                <Button variant="outline" onClick={handleClearExecutionLogs} className="text-yellow-800 border-yellow-300 hover:bg-yellow-100"><History className="h-4 w-4 mr-2" />履歴削除</Button>
               </div>
               <div className="flex justify-between items-center p-4 bg-red-50 rounded-lg">
                 <div><h4 className="font-medium text-red-800">全データ削除</h4><p className="text-sm text-red-600">すべての設定、チャット履歴、ワークフローデータを削除</p></div>
