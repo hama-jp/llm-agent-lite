@@ -15,23 +15,33 @@
 
 ## 1. 基盤構築 (Service & DB)
 -   [ ] **パッケージインストール**:
-    -   `pnpm add dexie` を実行し、`Dexie.js` をプロジェクトに追加する。
+    -   `pnpm add dexie nanoid` を実行し、必要なライブラリをプロジェクトに追加する。
 -   [ ] **ログサービスの新規作成**:
     -   `src/services/logService.js` という新しいファイルを作成する。
 -   [ ] **データベース定義**:
     -   `logService.js` 内で、`Dexie` を使って `llm_agent_logs` という名称のデータベースを定義する。
-    -   `workflow_runs` と `node_logs` の2つのテーブル（オブジェクトストア）を定義し、要件定義書通りのスキーマ（特にインデックス `++id, workflowId, startedAt, status` など）を設定する。
+    -   要件定義書に従い、主キーには `nanoid` で生成した文字列IDを使用する (`id`)。自動インクリメント (`++id`) は**使用しない**。
+    -   **具体的なコード例:**
+        ```javascript
+        import Dexie from 'dexie';
+
+        const db = new Dexie('llm_agent_logs');
+        db.version(1).stores({
+          workflow_runs: 'id, workflowId, startedAt, status',
+          node_logs: 'id, runId, nodeId, timestamp'
+        });
+        ```
 -   [ ] **CRUD関数の実装**:
-    -   `logService.js` 内に、以下の非同期関数を実装する。
-        -   `createRun(workflowId, inputData)`: 新しい実行を開始し、`workflow_runs` にレコードを追加して `runId` を返す。
+    -   `logService.js` 内に、以下の非同期関数を実装する。`nanoid` をインポートして使用する。
+        -   `createRun(workflowId, inputData)`: `nanoid()` で `id` を生成し、`workflow_runs` にレコードを追加して `runId` を返す。
         -   `updateRun(runId, data)`: 実行のステータスや終了日時を更新する。
-        -   `addNodeLog(logData)`: `node_logs` に新しいノードログを追加する。
+        -   `addNodeLog(logData)`: `nanoid()` で `id` を生成し、`node_logs` に新しいノードログを追加する。
         -   `getRunsForWorkflow(workflowId)`: 特定のワークフローの実行履歴を新しい順に取得する。
         -   `getLogsForRun(runId)`: 特定の実行IDに紐づくノードログを時系列で取得する。
         -   `clearAllLogs()`: すべてのログデータを削除する。
 
 ## 2. 実行ロジックへの組込
--   [ ] **`nodeExecutionService.js` の改修**:
+-   [ ] **`src/services/nodeExecutionService.js` の改修**:
     -   作成した `logService` をインポートする。
     -   クラスのコンストラクタや `startExecution` 内で、実行ごとの `runId` を保持する変数を追加する。
     -   既存のインメモリログ (`this.executionLog`, `this.addLog`) を削除またはコメントアウトする。
@@ -50,5 +60,5 @@
 
 ## 4. データ管理機能
 -   [ ] **設定画面の改修**:
-    -   `src/components/DataView.jsx` または `src/components/SettingsView.jsx` に、「実行履歴をすべて削除」ボタンを追加する。
+    -   `src/components/DataView.jsx` に、「実行履歴をすべて削除」ボタンを追加する。
     -   このボタンがクリックされたら、確認ダイアログを表示した上で `logService.clearAllLogs()` を呼び出す。

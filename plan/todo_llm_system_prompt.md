@@ -2,13 +2,16 @@
 
 これは、LLMノードにシステムプロンプトを設定する機能の実装に必要な、ファイルごとの具体的な作業リストです。各セクションの最後には品質保証のためのステップが含まれています。
 
+---
+
 ## 1. データ構造の定義 (`src/components/NodeEditor.jsx`)
+**目的:** 新しく作成されるLLMノードが、初めから `systemPrompt` を持つようにします。
 
 - [ ] `nodeTypes` 定数を探す。
 - [ ] `llm` オブジェクト内の `defaultData` プロパティを特定する。
 - [ ] `defaultData` から `prompt` キーを削除し、`systemPrompt: ''` を追加する。
-  - **変更前:** `defaultData: { temperature: 1.0, model: 'gpt-5-nano', prompt: '' }` (※もしあれば)
-  - **変更後:** `defaultData: { temperature: 1.0, model: 'gpt-5-nano', systemPrompt: '' }`
+  - **変更前:** `defaultData: { ..., prompt: '' }`
+  - **変更後:** `defaultData: { ..., systemPrompt: '' }`
 - [ ] **品質保証:**
   - [ ] `npm run lint` を実行し、構文エラーがないことを確認する。
 
@@ -32,12 +35,11 @@
   ```
 - [ ] **品質保証:**
   - [ ] `npm run test` を実行し、関連するUIテストがパスすることを確認する（特にスナップショットテスト）。
-  - [ ] `npm run lint` を実行し、構文エラーがないことを確認する。
 
 ## 3. APIリクエストの修正 (`src/services/llmService.js`)
 
-- [ ] `sendMessage` 関数のシグネチャを `async sendMessage(message, systemPrompt, options = {})` に変更する。
-- [ ] `sendMessage` 関数の冒頭で、APIリクエストの `messages` 配列を構築するロジックを追加する。
+- [ ] `sendMessage` 関数のシグネチャを `async sendMessage(message, systemPrompt, options = {}, context = {})` に変更する。(※contextはモニタリング機能で利用)
+- [ ] `sendMessage` 関数の冒頭で、APIリクエストの `messages` 配列を構築するロジックを修正・確認する。
   ```javascript
   const messages = [];
   if (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim() !== '') {
@@ -49,10 +51,9 @@
 - [ ] **`case 'openai'`, `case 'local'`, `case 'custom'`:**
   - `body` オブジェクトの `messages` プロパティを、上で作成した `messages` 配列で上書きする (`body.messages = messages`)。
 - [ ] **`case 'anthropic'`:**
-  - `body` オブジェクトを修正し、`systemPrompt` が存在する場合にトップレベルの `system` キーを追加する。
+  - `body` オブジェクトを修正し、`systemPrompt` が存在する場合にトップレベルの `system` キーを追加する。(既存の`messages`からは`system`ロールを削除する必要があるかもしれないので注意)
 - [ ] **品質保証:**
   - [ ] `llmService` に関連するユニットテストがあれば、それを更新・実行する。
-  - [ ] `npm run lint` を実行し、構文エラーがないことを確認する。
 
 ## 4. 実行ロジックの連携 (`src/services/nodeExecutionService.js`)
 
@@ -63,11 +64,7 @@
   const systemPrompt = node.data.systemPrompt || null;
   ```
 - [ ] `llmService.sendMessage` の呼び出し部分を修正し、`systemPrompt` を第二引数として渡す。
-  - **変更後:** `const response = await llmService.sendMessage(finalPrompt, systemPrompt, nodeSpecificOptions);`
+  - **変更後 (例):** `const response = await llmService.sendMessage(finalPrompt, systemPrompt, nodeSpecificOptions, context);`
 - [ ] **品質保証:**
   - [ ] `nodeExecutionService.test.js` を更新し、LLMノード実行時に `systemPrompt` が正しく渡されることを検証するテストケースを追加する。
   - [ ] `npm run test` を実行し、すべてのテストがパスすることを確認する。
-  - [ ] `npm run lint` を実行し、構文エラーがないことを確認する。
-
----
-以上で、実装に必要な全ての変更点が網羅されています。
