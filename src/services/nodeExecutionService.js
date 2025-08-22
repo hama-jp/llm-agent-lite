@@ -329,7 +329,7 @@ class NodeExecutionService {
       prompt: finalPrompt,
       model,
       temperature,
-      provider 
+      provider
     });
     
     try {
@@ -366,7 +366,7 @@ class NodeExecutionService {
         const model = node.data.model
         const temperature = node.data.temperature
         const provider = node.data.provider || 'openai' // ノード固有のプロバイダー
-        
+
         // 設定画面の情報を基本として、ノード固有のプロバイダー設定で上書き
         const currentSettings = llmService.loadSettings();
         const nodeSpecificOptions = {

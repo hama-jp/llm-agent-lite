@@ -39,7 +39,7 @@ describe('NodeExecutionService', () => {
     // 1. Define the workflow structure
     const nodes = [
       { id: 'input_1', type: 'input', data: { value: 'Hello World' } },
-      { id: 'llm_1', type: 'llm', data: { prompt: 'Translate to French: {{input_1}}' } },
+      { id: 'llm_1', type: 'llm', data: { provider: 'openai', model: 'gpt-5-nano' } }, // No prompt template
       { id: 'output_1', type: 'output', data: {} },
     ]
     const connections = [
@@ -82,17 +82,26 @@ describe('NodeExecutionService', () => {
 
     // 7. Check if LLM service was called correctly
     expect(llmService.sendMessage).toHaveBeenCalledTimes(1)
-    expect(llmService.sendMessage).toHaveBeenCalledWith('Translate to French: Hello World', expect.any(Object))
+    // The prompt is now just the input value
+    expect(llmService.sendMessage).toHaveBeenCalledWith('Hello World', expect.any(Object))
   })
 
   it('should use max_completion_tokens for gpt-5 models', async () => {
-    // The mock is pre-configured with a gpt-5 model, so we just run and verify
     llmService.sendMessage.mockResolvedValue('test response');
 
-    const nodes = [{ id: 'llm_1', type: 'llm', data: { prompt: 'test' } }];
-    // The service will use the settings from the mocked llmService
-    const executor = nodeExecutionService.startExecution(nodes, [], {});
-    await executor.next();
+    const nodes = [
+      { id: 'input_1', type: 'input', data: { value: 'test' } },
+      { id: 'llm_1', type: 'llm', data: { provider: 'openai', model: 'gpt-5' } } // Use a gpt-5 model
+    ];
+    const connections = [
+      { id: 'conn_1', from: { nodeId: 'input_1', portIndex: 0 }, to: { nodeId: 'llm_1', portIndex: 0 } },
+    ];
+
+    const executor = nodeExecutionService.startExecution(nodes, connections, {});
+
+    // Run through the workflow
+    let result = await executor.next(); // input_1
+    result = await executor.next();     // llm_1
 
     // The real test is that the service doesn't crash due to the parameter change.
     // A more advanced test would mock `fetch` to inspect the request body.
