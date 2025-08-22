@@ -9,7 +9,7 @@ const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
   const handleDataChange = (partialData) => {
     if (!editingNode) return;
     const newEditingNodeData = { ...editingNode.data, ...partialData };
-    onEditingNodeChange(prev => ({ ...prev, data: newEditingNodeData }));
+    onEditingNodeChange({ ...editingNode, data: newEditingNodeData });
   };
 
   const handleFileChange = (e) => {
@@ -69,7 +69,7 @@ const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
         )}
         {editingNode.type === 'llm' && (
           <>
-            <div><label className="block text-xs font-medium mb-1 text-gray-600">プロンプト</label><textarea value={editingNode.data.prompt || ''} onChange={(e) => handleDataChange({ prompt: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" rows={5} placeholder="プロンプトを入力してください" /></div>
+            <div><label className="block text-xs font-medium mb-1 text-gray-600">システムプロンプト</label><textarea value={editingNode.data.systemPrompt || ''} onChange={(e) => handleDataChange({ systemPrompt: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" rows={5} placeholder="LLMの役割や応答に関する指示を入力..." /></div>
             <div><label className="block text-xs font-medium mb-1 text-gray-600">Temperature</label><input type="number" value={editingNode.data.temperature || 0.7} onChange={(e) => handleDataChange({ temperature: parseFloat(e.target.value) })} className="w-full px-2 py-1.5 text-sm border rounded-md" min="0" max="2" step="0.1" /></div>
             
             {/* プロバイダー選択 */}

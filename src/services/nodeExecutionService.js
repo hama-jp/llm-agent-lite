@@ -315,6 +315,7 @@ class NodeExecutionService {
     const temperature = node.data.temperature || 0.7
     const model = node.data.model
     const provider = node.data.provider || 'openai' // ノード固有のプロバイダー
+    const systemPrompt = node.data.systemPrompt || null
     
     // 入力をそのままLLMに送信（プロンプト機能なし）
     const inputValues = Object.values(inputs).filter(v => v !== undefined && v !== null);
@@ -327,6 +328,7 @@ class NodeExecutionService {
     
     this.addLog('info', `LLMに送信するプロンプト: ${finalPrompt.substring(0, 100)}...`, node.id, { 
       prompt: finalPrompt,
+      systemPrompt,
       model,
       temperature,
       provider
@@ -346,7 +348,7 @@ class NodeExecutionService {
         maxTokens: currentSettings.maxTokens
       };
       
-      const response = await llmService.sendMessage(finalPrompt, nodeSpecificOptions);
+      const response = await llmService.sendMessage(finalPrompt, systemPrompt, nodeSpecificOptions, { nodeId: node.id });
       this.addLog('info', `LLMレスポンス: ${response.substring(0, 100)}...`, node.id, { response });
       return response
     } catch (error) {

@@ -30,7 +30,7 @@ class LLMService {
     }
 
     try {
-      await this.sendMessage('テスト', { isTest: true })
+      await this.sendMessage('テスト', null, { isTest: true })
       return { success: true, message: 'API接続テストが成功しました' }
     } catch (error) {
       throw new Error(`API接続に失敗しました: ${error.message}`)
@@ -38,7 +38,7 @@ class LLMService {
   }
 
   // メッセージ送信
-  async sendMessage(message, options = {}) {
+  async sendMessage(message, systemPrompt, options = {}, context = {}) {
     const currentSettings = { ...this.settings, ...options };
     const { provider, apiKey, baseUrl, model, temperature, maxTokens } = currentSettings
 
@@ -74,10 +74,17 @@ class LLMService {
           headers['Authorization'] = `Bearer ${apiKey}`
         }
         
+        // メッセージ配列を構築
+        const messages = [];
+        if (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim() !== '') {
+          messages.push({ role: 'system', content: systemPrompt });
+        }
+        messages.push({ role: 'user', content: message });
+        
         // ボディの設定（OpenAI互換）
         body = {
           model: model,
-          messages: [{ role: 'user', content: message }],
+          messages: messages,
           temperature: temperature,
         }
         if (model && model.startsWith('gpt-5')) {
@@ -98,6 +105,10 @@ class LLMService {
           model: model,
           max_tokens: maxTokens,
           messages: [{ role: 'user', content: message }]
+        }
+        // Anthropic APIではsystemプロンプトはトップレベルに配置
+        if (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim() !== '') {
+          body.system = systemPrompt;
         }
         break
 

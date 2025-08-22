@@ -83,7 +83,7 @@ describe('NodeExecutionService', () => {
     // 7. Check if LLM service was called correctly
     expect(llmService.sendMessage).toHaveBeenCalledTimes(1)
     // The prompt is now just the input value
-    expect(llmService.sendMessage).toHaveBeenCalledWith('Hello World', expect.any(Object))
+    expect(llmService.sendMessage).toHaveBeenCalledWith('Hello World', null, expect.any(Object), expect.any(Object))
   })
 
   it('should use max_completion_tokens for gpt-5 models', async () => {
