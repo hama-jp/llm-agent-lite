@@ -100,8 +100,8 @@ describe('NodeExecutionService', () => {
     const executor = nodeExecutionService.startExecution(nodes, connections, {});
 
     // Run through the workflow
-    let result = await executor.next(); // input_1
-    result = await executor.next();     // llm_1
+    await executor.next(); // input_1
+    await executor.next();     // llm_1
 
     // The real test is that the service doesn't crash due to the parameter change.
     // A more advanced test would mock `fetch` to inspect the request body.

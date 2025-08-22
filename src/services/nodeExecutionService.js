@@ -526,7 +526,7 @@ class NodeExecutionService {
     return node.data.useInput ? value : value
   }
 
-  async executeVariableGetNode(node, inputs) {
+  async executeVariableGetNode(node) {
     const variableName = node.data.variableName || ''
     if (!variableName) {
       throw new Error('変数名が設定されていません')
