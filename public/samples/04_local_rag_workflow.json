@@ -1,0 +1,71 @@
+{
+  "id": "wf_local_rag_1724261400000",
+  "name": "04 ローカルRAGサンプル",
+  "nodes": [
+    {
+      "id": "input_read_path_1",
+      "type": "input",
+      "position": { "x": 50, "y": 100 },
+      "size": { "width": 240, "height": 180 },
+      "data": { "label": "読込ファイルパス", "value": "/app/sample_document.txt", "inputType": "text" }
+    },
+    {
+      "id": "readFile_1",
+      "type": "readFile",
+      "position": { "x": 350, "y": 100 },
+      "size": { "width": 180, "height": 120 },
+      "data": { "label": "ファイル読込", "filePath": "" }
+    },
+    {
+      "id": "input_prompt_template_1",
+      "type": "input",
+      "position": { "x": 350, "y": 250 },
+      "size": { "width": 240, "height": 180 },
+      "data": { "label": "プロンプトテンプレート", "value": "以下の文章を日本語で3行に要約してください。\n\n---\n{{input1}}\n---\n", "inputType": "text" }
+    },
+    {
+      "id": "text_combiner_1",
+      "type": "text_combiner",
+      "position": { "x": 650, "y": 150 },
+      "size": { "width": 200, "height": 210 },
+      "data": { "label": "プロンプト作成" }
+    },
+    {
+      "id": "llm_1",
+      "type": "llm",
+      "position": { "x": 900, "y": 150 },
+      "size": { "width": 320, "height": 240 },
+      "data": { "label": "ローカルLLMで要約", "temperature": 0.5, "model": "llama3", "provider": "local", "baseUrl": "http://localhost:11434/v1" }
+    },
+    {
+      "id": "input_write_path_1",
+      "type": "input",
+      "position": { "x": 650, "y": 400 },
+      "size": { "width": 240, "height": 180 },
+      "data": { "label": "書込ファイルパス", "value": "/app/summary_output.txt", "inputType": "text" }
+    },
+    {
+      "id": "writeFile_1",
+      "type": "writeFile",
+      "position": { "x": 1280, "y": 250 },
+      "size": { "width": 180, "height": 120 },
+      "data": { "label": "ファイル書込", "filePath": "" }
+    },
+    {
+      "id": "output_1",
+      "type": "output",
+      "position": { "x": 1520, "y": 250 },
+      "size": { "width": 180, "height": 180 },
+      "data": { "label": "完了", "result": "" }
+    }
+  ],
+  "connections": [
+    { "id": "conn_1", "from": { "nodeId": "input_read_path_1", "portIndex": 0 }, "to": { "nodeId": "readFile_1", "portIndex": 0 } },
+    { "id": "conn_2", "from": { "nodeId": "readFile_1", "portIndex": 0 }, "to": { "nodeId": "text_combiner_1", "portIndex": 1 } },
+    { "id": "conn_3", "from": { "nodeId": "input_prompt_template_1", "portIndex": 0 }, "to": { "nodeId": "text_combiner_1", "portIndex": 0 } },
+    { "id": "conn_4", "from": { "nodeId": "text_combiner_1", "portIndex": 0 }, "to": { "nodeId": "llm_1", "portIndex": 0 } },
+    { "id": "conn_5", "from": { "nodeId": "llm_1", "portIndex": 0 }, "to": { "nodeId": "writeFile_1", "portIndex": 1 } },
+    { "id": "conn_6", "from": { "nodeId": "input_write_path_1", "portIndex": 0 }, "to": { "nodeId": "writeFile_1", "portIndex": 0 } },
+    { "id": "conn_7", "from": { "nodeId": "writeFile_1", "portIndex": 0 }, "to": { "nodeId": "output_1", "portIndex": 0 } }
+  ]
+}

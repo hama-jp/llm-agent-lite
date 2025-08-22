@@ -213,6 +213,15 @@ class NodeExecutionService {
       case 'variable_get':
         output = await this.executeVariableGetNode(node, inputs)
         break
+      case 'readFile':
+        output = await this.executeReadFileNode(node, inputs)
+        break
+      case 'writeFile':
+        output = await this.executeWriteFileNode(node, inputs)
+        break
+      case 'listDirectory':
+        output = await this.executeListDirectoryNode(node, inputs)
+        break
       default:
         throw new Error(`未知のノードタイプ: ${node.type}`)
     }
@@ -314,36 +323,33 @@ class NodeExecutionService {
   async executeLLMNode(node, inputs) {
     const temperature = node.data.temperature || 0.7
     const model = node.data.model
-    const provider = node.data.provider || 'openai' // ノード固有のプロバイダー
+    const provider = node.data.provider || 'openai'
+    const baseUrl = node.data.baseUrl // ノード固有のbaseUrl
     
-    // 入力をそのままLLMに送信（プロンプト機能なし）
     const inputValues = Object.values(inputs).filter(v => v !== undefined && v !== null);
     if (inputValues.length === 0) {
       throw new Error('LLMノードに入力がありません');
     }
     
-    // 最初の入力値をプロンプトとして使用
     const finalPrompt = String(inputValues[0]);
     
     this.addLog('info', `LLMに送信するプロンプト: ${finalPrompt.substring(0, 100)}...`, node.id, { 
       prompt: finalPrompt,
+      provider,
       model,
       temperature,
-      provider 
+      baseUrl
     });
     
     try {
-      // 設定画面の情報を基本として、ノード固有のプロバイダーとモデル設定で上書き
-      // APIキーやbaseURLは設定画面の値を使用し、プロバイダーとモデルのみノード固有値を使用
       const currentSettings = llmService.loadSettings();
       const nodeSpecificOptions = {
         provider,
         model,
         temperature,
-        // 設定画面の認証情報を継承
-        apiKey: currentSettings.apiKey,
-        baseUrl: currentSettings.baseUrl,
-        maxTokens: currentSettings.maxTokens
+        baseUrl: baseUrl || currentSettings.baseUrl, // ノードのbaseUrlを優先
+        apiKey: currentSettings.apiKey, // グローバル設定を継承
+        maxTokens: currentSettings.maxTokens // グローバル設定を継承
       };
       
       const response = await llmService.sendMessage(finalPrompt, nodeSpecificOptions);
@@ -365,18 +371,17 @@ class NodeExecutionService {
       try {
         const model = node.data.model
         const temperature = node.data.temperature
-        const provider = node.data.provider || 'openai' // ノード固有のプロバイダー
-        
-        // 設定画面の情報を基本として、ノード固有のプロバイダー設定で上書き
+        const provider = node.data.provider || 'openai'
+        const baseUrl = node.data.baseUrl // ノード固有のbaseUrl
+
         const currentSettings = llmService.loadSettings();
         const nodeSpecificOptions = {
           provider,
           model,
           temperature,
-          // 設定画面の認証情報を継承
-          apiKey: currentSettings.apiKey,
-          baseUrl: currentSettings.baseUrl,
-          maxTokens: currentSettings.maxTokens
+          baseUrl: baseUrl || currentSettings.baseUrl, // ノードのbaseUrlを優先
+          apiKey: currentSettings.apiKey, // グローバル設定を継承
+          maxTokens: currentSettings.maxTokens // グローバル設定を継承
         };
         
         const response = await llmService.sendMessage(prompt, nodeSpecificOptions)
@@ -539,6 +544,69 @@ class NodeExecutionService {
 
     this.addLog('info', `変数 '${variableName}' の値を取得: ${value}`, node.id, { variableName, value })
     return value
+  }
+
+  async executeReadFileNode(node, inputs) {
+    const filePath = inputs.filePath || node.data.filePath;
+    if (!filePath) throw new Error('ReadFileNode: ファイルパスが指定されていません。');
+
+    this.addLog('info', `ファイル読み込み中: ${filePath}`, node.id);
+    const response = await fetch('/api/fs/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePath }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || `Failed to read file: ${response.statusText}`);
+    }
+
+    this.addLog('success', `ファイル読み込み完了`, node.id, { filePath, contentLength: result.content.length });
+    return result.content;
+  }
+
+  async executeWriteFileNode(node, inputs) {
+    const filePath = inputs.filePath || node.data.filePath;
+    if (!filePath) throw new Error('WriteFileNode: ファイルパスが指定されていません。');
+
+    const content = inputs.content || node.data.content;
+    if (content === undefined || content === null) throw new Error('WriteFileNode: 書き込む内容がありません。');
+
+    this.addLog('info', `ファイル書き込み中: ${filePath}`, node.id);
+    const response = await fetch('/api/fs/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePath, content: String(content) }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || `Failed to write file: ${response.statusText}`);
+    }
+
+    this.addLog('success', `ファイル書き込み完了`, node.id, { filePath });
+    return null; // This node doesn't produce an output for chaining
+  }
+
+  async executeListDirectoryNode(node, inputs) {
+    const filePath = inputs.filePath || node.data.filePath;
+    if (!filePath) throw new Error('ListDirectoryNode: フォルダパスが指定されていません。');
+
+    this.addLog('info', `ディレクトリ一覧取得中: ${filePath}`, node.id);
+    const response = await fetch('/api/fs/list', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePath }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || `Failed to list directory: ${response.statusText}`);
+    }
+
+    this.addLog('success', `ディレクトリ一覧取得完了`, node.id, { filePath, itemCount: result.length });
+    return JSON.stringify(result, null, 2); // Return items as a JSON string
   }
 }
 

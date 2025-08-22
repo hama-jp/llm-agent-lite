@@ -96,6 +96,18 @@ const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
               </select>
             )}
             </div>
+            {(editingNode.data.provider === 'local' || editingNode.data.provider === 'custom') && (
+              <div>
+                <label className="block text-xs font-medium mb-1 text-gray-600">ベースURL</label>
+                <input
+                  type="text"
+                  value={editingNode.data.baseUrl || ''}
+                  onChange={(e) => handleDataChange({ baseUrl: e.target.value })}
+                  className="w-full px-2 py-1.5 text-sm border rounded-md"
+                  placeholder="例: http://localhost:11434/v1"
+                />
+              </div>
+            )}
           </>
         )}
         {editingNode.type === 'if' && ( <><div><label className="block text-xs font-medium mb-1 text-gray-600">条件タイプ</label><select value={editingNode.data.conditionType || 'llm'} onChange={(e) => handleDataChange({ conditionType: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="llm">LLM判断</option><option value="variable">変数比較</option></select></div>{editingNode.data.conditionType === 'llm' ? (<><div><label className="block text-xs font-medium mb-1 text-gray-600">判断条件</label><textarea value={editingNode.data.condition || ''} onChange={(e) => handleDataChange({ condition: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" rows={3} placeholder="LLMに判断させる条件を入力" /></div><div><label className="block text-xs font-medium mb-1 text-gray-600">Temperature</label><input type="number" value={editingNode.data.temperature || 0.7} onChange={(e) => handleDataChange({ temperature: parseFloat(e.target.value) })} className="w-full px-2 py-1.5 text-sm border rounded-md" min="0" max="2" step="0.1" /></div>            {/* プロバイダー選択 */}
@@ -137,6 +149,44 @@ const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
         {editingNode.type === 'variable_get' && (
           <>
             <div><label className="block text-xs font-medium mb-1 text-gray-600">変数名</label><input type="text" value={editingNode.data.variableName || ''} onChange={(e) => handleDataChange({ variableName: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="取得する変数名" /></div>
+          </>
+        )}
+        {(editingNode.type === 'readFile' || editingNode.type === 'listDirectory') && (
+          <>
+            <div>
+              <label className="block text-xs font-medium mb-1 text-gray-600">ファイル/フォルダパス</label>
+              <input
+                type="text"
+                value={editingNode.data.filePath || ''}
+                onChange={(e) => handleDataChange({ filePath: e.target.value })}
+                className="w-full px-2 py-1.5 text-sm border rounded-md"
+                placeholder="絶対パスを入力してください"
+              />
+            </div>
+          </>
+        )}
+        {editingNode.type === 'writeFile' && (
+          <>
+            <div>
+              <label className="block text-xs font-medium mb-1 text-gray-600">書き込みファイルパス</label>
+              <input
+                type="text"
+                value={editingNode.data.filePath || ''}
+                onChange={(e) => handleDataChange({ filePath: e.target.value })}
+                className="w-full px-2 py-1.5 text-sm border rounded-md"
+                placeholder="絶対パスを入力してください"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1 text-gray-600">書き込み内容</label>
+              <textarea
+                value={editingNode.data.content || ''}
+                onChange={(e) => handleDataChange({ content: e.target.value })}
+                className="w-full px-2 py-1.5 text-sm border rounded-md"
+                rows={5}
+                placeholder="ファイルに書き込む内容。接続からの入力も使用できます。"
+              />
+            </div>
           </>
         )}
       </div>
