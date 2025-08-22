@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useLayoutEffect, useMemo, useEffect } from 'react'
-import { Plus, Play, Save, Download, Upload, Trash2, Square, FileUp, StepForward, RotateCcw, MoreHorizontal, FilePlus, FolderOpen, Trash, Edit, Check } from 'lucide-react'
+import { Plus, Play, Save, Download, Upload, Trash2, Square, FileUp, StepForward, RotateCcw, MoreHorizontal, FilePlus, FolderOpen, Trash, Edit, Check, History } from 'lucide-react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Alert, AlertDescription } from '@/components/ui/alert.jsx'
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input.jsx'
 import nodeExecutionService from '../services/nodeExecutionService.js'
 import llmService from '../services/llmService.js'
 import workflowManagerService from '../services/workflowManagerService.js'
+import WorkflowHistoryView from './WorkflowHistoryView.jsx'
 import { debounce } from '../lib/utils.js'
 
 // nodeTypes定義をコンポーネント外に移動
@@ -44,6 +45,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
   const [isRenaming, setIsRenaming] = useState(false);
   const [workflows, setWorkflows] = useState([]);
   const [nodeResizing, setNodeResizing] = useState(null); // { nodeId, startSize, startMouse }
+  const [showHistoryView, setShowHistoryView] = useState(false)
 
   const canvasRef = useRef(null)
   const nodeRefs = useRef(new Map())
@@ -454,11 +456,10 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
 
     const inputNodes = preprocessedNodes.filter(n => n.type === 'input');
     const inputData = Object.fromEntries(inputNodes.map(n => [n.id, n.data.value || '']));
-    const exec = nodeExecutionService.startExecution(preprocessedNodes, connections, inputData, nodeTypes);
+    const exec = await nodeExecutionService.startExecution(preprocessedNodes, connections, inputData, nodeTypes);
 
     setExecutor(exec);
     setExecutionState({ running: true, currentNodeId: null, executedNodeIds: new Set() });
-    setExecutionResult(null);
     setDebugLog([]);
     nodeExecutionService.setDebugMode(true);
 
@@ -507,7 +508,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
 
         const inputNodes = preprocessedNodes.filter(n => n.type === 'input');
         const inputData = Object.fromEntries(inputNodes.map(n => [n.id, n.data.value || '']));
-        currentExecutor = nodeExecutionService.startExecution(preprocessedNodes, connections, inputData);
+        currentExecutor = await nodeExecutionService.startExecution(preprocessedNodes, connections, inputData);
         setExecutor(currentExecutor);
         setExecutionState({ running: true, currentNodeId: null, executedNodeIds: new Set() });
         alert("ステップ実行を開始します。もう一度「ステップ」を押して最初のノードを実行してください。");
@@ -551,6 +552,13 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
     setExecutionState({ running: false, currentNodeId: null, executedNodeIds: new Set() });
     setExecutionResult(null);
     setDebugLog([]);
+    
+    // 出力ノードの結果もクリア
+    setNodes(prev => prev.map(node => 
+      node.type === 'output' 
+        ? { ...node, data: { ...node.data, result: '' } }
+        : node
+    ));
   };
 
   const exportWorkflow = () => {
@@ -649,7 +657,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
           ))}
           <div className="text-xs text-gray-700 bg-gray-50 p-2 rounded border">
             {node.type === 'input' && node.data.inputType !== 'text' && <div className="truncate">{node.data.value || '入力値を設定...'}</div>}
-            {node.type === 'llm' && <textarea className="w-full text-xs bg-transparent border-none focus:ring-0 resize-none" readOnly value={node.data.currentPrompt || '入力待ち...'} placeholder="LLMへの入力プロンプト..." style={{ height: `${Math.max(60, (node.size?.height || 240) - 140)}px` }} />}
+            {node.type === 'llm' && <textarea className="w-full text-xs bg-transparent border-none focus:ring-0 resize-none" readOnly value={node.data.systemPrompt || 'システムプロンプトを設定...'} placeholder="システムプロンプト..." style={{ height: `${Math.max(60, (node.size?.height || 240) - 140)}px` }} />}
             {node.type === 'if' && <div className="truncate">条件: {node.data.condition?.substring(0, 30)}...</div>}
             {node.type === 'while' && <div className="truncate">繰り返し: {node.data.variable} {node.data.operator} {node.data.value}</div>}
             {node.type === 'variable_set' && <div className="truncate">変数設定: {node.data.variableName} = {node.data.useInput ? '入力値' : node.data.value?.substring(0, 20) + '...'}</div>}
@@ -759,7 +767,11 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
 
           <Button onClick={handleRunAll} disabled={executionState.running} size="sm" className="gap-1.5 bg-green-500 hover:bg-green-600 text-white"><Play className="h-4 w-4" />すべて実行</Button>
           <Button onClick={handleStepForward} disabled={executionState.running && executor} size="sm" variant="outline" className="gap-1.5"><StepForward className="h-4 w-4" />ステップ</Button>
-          <Button onClick={handleResetExecution} disabled={!executionState.running} size="sm" variant="destructive" className="gap-1.5"><RotateCcw className="h-4 w-4" />リセット</Button>
+          <Button onClick={handleResetExecution} disabled={!executionState.running && !executionResult && debugLog.length === 0} size="sm" variant="destructive" className="gap-1.5"><RotateCcw className="h-4 w-4" />リセット</Button>
+          
+          <div className="w-px h-6 bg-gray-200 mx-2" />
+          
+          <Button onClick={() => setShowHistoryView(!showHistoryView)} size="sm" variant={showHistoryView ? "default" : "outline"} className="gap-1.5"><History className="h-4 w-4" />実行履歴</Button>
         </div>
         <div ref={canvasRef} className="w-full h-full relative cursor-crosshair select-none" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onContextMenu={handleCanvasRightClick} onClick={() => { closeContextMenu(); onSelectedNodeChange(null); setSelectedConnection(null) }} style={{ backgroundImage: 'radial-gradient(circle, #ccc 1px, transparent 1px)', backgroundSize: '20px 20px', userSelect: draggedNode || isConnecting ? 'none' : 'auto' }}>
           {renderConnections()}
@@ -774,9 +786,17 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
         </div>
       </div>
       <div className="w-80 bg-white border-l overflow-y-auto">
-        {/* This panel is now empty, it will be moved to Layout.jsx */}
+        {showHistoryView ? (
+          <div className="p-4">
+            <WorkflowHistoryView workflowId={currentWorkflow?.id || 'default'} />
+          </div>
+        ) : (
+          <>
+            {/* This panel is now empty, it will be moved to Layout.jsx */}
+          </>
+        )}
 
-         {executionResult && (
+         {executionResult && !showHistoryView && (
           <div className="p-4 border-t">
             <div className="space-y-2">
               <div className="flex items-center justify-between"><h4 className="font-medium text-sm">実行結果</h4><button onClick={() => setShowDebugLog(!showDebugLog)} className="text-xs text-blue-600 hover:text-blue-800 underline">{showDebugLog ? 'ログを隠す' : 'デバッグログ'}</button></div>

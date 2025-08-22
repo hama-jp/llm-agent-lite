@@ -38,7 +38,7 @@ class LLMService {
   }
 
   // メッセージ送信
-  async sendMessage(message, systemPrompt, options = {}, context = {}) {
+  async sendMessage(message, systemPrompt, options = {}) {
     const currentSettings = { ...this.settings, ...options };
     const { provider, apiKey, baseUrl, model, temperature, maxTokens } = currentSettings
 
@@ -58,7 +58,7 @@ class LLMService {
     switch (provider) {
       case 'openai':
       case 'local':
-      case 'custom':
+      case 'custom': {
         // エンドポイントの設定
         if (provider === 'openai') {
           endpoint = 'https://api.openai.com/v1/chat/completions'
@@ -93,6 +93,7 @@ class LLMService {
           body.max_tokens = maxTokens;
         }
         break
+      }
 
       case 'anthropic':
         endpoint = 'https://api.anthropic.com/v1/messages'

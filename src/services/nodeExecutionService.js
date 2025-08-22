@@ -1,4 +1,5 @@
 import llmService from './llmService.js'
+import logService from './logService.js'
 
 class NodeExecutionService {
   constructor() {
@@ -8,6 +9,7 @@ class NodeExecutionService {
     this.variables = {}
     this.executionLog = []
     this.debugMode = false
+    this.currentRunId = null
   }
 
   setDebugMode(enabled) {
@@ -20,16 +22,31 @@ class NodeExecutionService {
       level,
       message,
       nodeId,
-      data: this.debugMode ? data : null, // デバッグ時のみデータ保存
-      variables: this.debugMode ? { ...this.variables } : null // デバッグ時のみ変数コピー
+      data: this.debugMode ? data : null,
+      variables: this.debugMode ? { ...this.variables } : null
     }
     
-    // ログサイズ制限（最大500エントリー）
+    // インメモリログ（既存機能との互換性のため保持）
     if (this.executionLog.length >= 500) {
-      this.executionLog = this.executionLog.slice(-400); // 古い100エントリーを削除
+      this.executionLog = this.executionLog.slice(-400);
+    }
+    this.executionLog.push(logEntry)
+    
+    // 永続化ログ（新機能）
+    if (this.currentRunId && nodeId) {
+      const nodeLogData = {
+        runId: this.currentRunId,
+        nodeId,
+        status: level === 'error' ? 'failed' : level === 'success' ? 'completed' : 'running',
+        inputs: data?.inputs || {},
+        outputs: data?.result || data?.response || {},
+        error: level === 'error' ? message : null
+      }
+      logService.addNodeLog(nodeLogData).catch(error => {
+        console.error('ログ保存エラー:', error)
+      })
     }
     
-    this.executionLog.push(logEntry)
     if (this.debugMode) {
       console.log(`[${level}] ${message}`, data)
     }
@@ -50,9 +67,10 @@ class NodeExecutionService {
     this.clearLog()
     this.isExecuting = false
     this.executor = null
+    this.currentRunId = null
   }
 
-  startExecution(nodes, connections, inputData = {}, nodeTypes = {}) {
+  async startExecution(nodes, connections, inputData = {}, nodeTypes = {}) {
     if (this.isExecuting) {
       throw new Error('ワークフローが既に実行中です')
     }
@@ -60,8 +78,13 @@ class NodeExecutionService {
     this.isExecuting = true
     this.executionContext = {}
     this.variables = { ...inputData }
-    this.nodeTypes = nodeTypes // Store node types
+    this.nodeTypes = nodeTypes
     this.clearLog()
+
+    // ワークフロー実行の開始をログに記録
+    const workflowId = 'default' // TODO: 実際のワークフローIDを取得
+    this.currentRunId = await logService.createRun(workflowId, inputData)
+    
     this.addLog('info', 'ワークフロー実行準備完了', null, {
       nodeCount: nodes.length,
       connectionCount: connections.length,
@@ -87,6 +110,10 @@ class NodeExecutionService {
           if (currentIndex >= executionOrder.length) {
             this._service.isExecuting = false
             this._service.addLog('success', 'ワークフロー実行完了')
+            // ワークフロー実行の完了をログに更新
+            if (this._service.currentRunId) {
+              logService.updateRun(this._service.currentRunId, { status: 'completed' }).catch(console.error)
+            }
             return { done: true, value: { status: 'completed', variables: this._service.variables } }
           }
 
@@ -116,6 +143,10 @@ class NodeExecutionService {
           } catch (error) {
             this._service.addLog('error', `ノード実行エラー: ${error.message}`, nodeId, { error: error.stack })
             this._service.isExecuting = false
+            // ワークフロー実行のエラーをログに更新
+            if (this._service.currentRunId) {
+              logService.updateRun(this._service.currentRunId, { status: 'failed' }).catch(console.error)
+            }
             return { done: true, value: { status: 'error', error, nodeId } }
           }
         },
@@ -139,6 +170,11 @@ class NodeExecutionService {
       this.addLog('info', 'ワークフロー実行停止が要求されました')
       this.isExecuting = false
       this.executor = null
+      // ワークフロー実行の停止をログに更新
+      if (this.currentRunId) {
+        logService.updateRun(this.currentRunId, { status: 'stopped' }).catch(console.error)
+        this.currentRunId = null
+      }
     }
   }
 
