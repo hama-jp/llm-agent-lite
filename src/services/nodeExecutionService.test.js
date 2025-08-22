@@ -83,7 +83,7 @@ describe('NodeExecutionService', () => {
     // 7. Check if LLM service was called correctly
     expect(llmService.sendMessage).toHaveBeenCalledTimes(1)
     // The prompt is now just the input value
-    expect(llmService.sendMessage).toHaveBeenCalledWith('Hello World', expect.any(Object))
+    expect(llmService.sendMessage).toHaveBeenCalledWith('Hello World', null, expect.any(Object), expect.any(Object))
   })
 
   it('should use max_completion_tokens for gpt-5 models', async () => {
@@ -100,8 +100,8 @@ describe('NodeExecutionService', () => {
     const executor = nodeExecutionService.startExecution(nodes, connections, {});
 
     // Run through the workflow
-    let result = await executor.next(); // input_1
-    result = await executor.next();     // llm_1
+    await executor.next(); // input_1
+    await executor.next();     // llm_1
 
     // The real test is that the service doesn't crash due to the parameter change.
     // A more advanced test would mock `fetch` to inspect the request body.
