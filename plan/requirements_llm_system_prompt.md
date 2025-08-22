@@ -10,6 +10,7 @@
 ## 3. 機能要件
 ### 3.1. UI/UX要件
 - **R-UI-1: プロパティパネルの項目変更**
+  - **対象ファイル**: `src/components/Layout.jsx` 内の `NodePropertiesPanel` コンポーネント。
   - ユーザーが「LLM生成」ノードを選択した際、右側のプロパティ編集パネルの構成を変更する。
   - 既存の「プロンプト」テキストエリアを**削除**する。これにより、LLMへのユーザー入力は、ノードへの接続から供給されるデータのみとなる。
   - 新たに「システムプロンプト (System Prompt)」というラベルのテキストエリアを設置する。
@@ -17,6 +18,7 @@
 
 ### 3.2. データ永続化要件
 - **R-DA-1: データ構造の変更**
+  - **対象ファイル**: `src/components/NodeEditor.jsx` (ノードのデフォルトデータ定義)
   - 「LLM生成」ノードのデータオブジェクト(`node.data`)から、既存の`prompt`キーを**削除**する。
   - 新たに`systemPrompt`というキーを追加し、ユーザーが入力した文字列を保存する。
 - **R-DA-2: ワークフロー保存・復元**
@@ -25,9 +27,11 @@
 
 ### 3.3. 実行ロジック要件
 - **R-EX-1: システムプロンプトの送信**
-  - LLMノードが実行される際、`systemPrompt`に入力があれば、その内容をLLM APIリクエストに含めて送信する。
+  - **対象ファイル**: `src/services/llmService.js`, `src/services/nodeExecutionService.js`
+  - LLMノードが実行される際、`node.data.systemPrompt` に入力があれば、その内容をLLM APIリクエストに含めて送信する。
   - `systemPrompt`が未入力または空文字列の場合は、システムプロンプトに関する情報をリクエストに含めない。
 - **R-EX-2: プロバイダーごとの適切な形式**
+  - **対象ファイル**: `src/services/llmService.js`
   - **OpenAI互換API (OpenAI, Local, Custom):** `messages`配列の先頭に `{ "role": "system", "content": "..." }` という形式でシステムプロンプトを追加する。
   - **Anthropic API:** リクエストボディのトップレベルに `"system": "..."` というキーでシステムプロンプトを追加する。
 - **R-EX-3: 他ノードへの非影響**
