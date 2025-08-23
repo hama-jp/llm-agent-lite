@@ -45,43 +45,43 @@ const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
       };
       reader.readAsText(file);
     } else {
-      alert('TXTファイルを選択してください。');
+      alert('Please select a TXT file.');
     }
   };
 
   return (
     <div className="p-3">
-      <h3 className="font-semibold mb-3 text-sm text-gray-700">ノードプロパティ</h3>
+      <h3 className="font-semibold mb-3 text-sm text-gray-700">Node Properties</h3>
       <div className="space-y-2">
-        <div><label className="block text-xs font-medium mb-1 text-gray-600">ノード名</label><input type="text" value={editingNode.data.label} onChange={(e) => handleDataChange({ label: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" /></div>
+        <div><label className="block text-xs font-medium mb-1 text-gray-600">Node Name</label><input type="text" value={editingNode.data.label} onChange={(e) => handleDataChange({ label: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" /></div>
         {editingNode.type === 'input' && (
           <>
             <div>
-              <label className="block text-xs font-medium mb-1 text-gray-600">入力タイプ</label>
+              <label className="block text-xs font-medium mb-1 text-gray-600">Input Type</label>
               <select
                 value={editingNode.data.inputType || 'text'}
                 onChange={(e) => handleDataChange({ inputType: e.target.value, value: '', fileContent: null, fileName: null })}
                 className="w-full px-2 py-1.5 text-sm border rounded-md"
               >
-                <option value="text">テキスト</option>
-                <option value="file">ファイル (txt)</option>
+                <option value="text">Text</option>
+                <option value="file">File (txt)</option>
               </select>
             </div>
             {(editingNode.data.inputType === 'file') ? (
               <div>
-                <label className="block text-xs font-medium mb-1 text-gray-600">入力ファイル</label>
+                <label className="block text-xs font-medium mb-1 text-gray-600">Input File</label>
                 <input type="file" accept=".txt" onChange={handleFileChange} className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100" />
-                {editingNode.data.fileName && <p className="text-xs text-gray-500 mt-1">読み込み済み: {editingNode.data.fileName}</p>}
+                {editingNode.data.fileName && <p className="text-xs text-gray-500 mt-1">Loaded: {editingNode.data.fileName}</p>}
               </div>
             ) : (
               <div>
-                <label className="block text-xs font-medium mb-1 text-gray-600">入力値</label>
+                <label className="block text-xs font-medium mb-1 text-gray-600">Input Value</label>
                 <textarea
                   value={editingNode.data.value || ''}
                   onChange={(e) => handleDataChange({ value: e.target.value })}
                   className="w-full px-2 py-1.5 text-sm border rounded-md resize-none"
                   style={{ height: `${calculateTextAreaHeight(3)}px` }}
-                  placeholder="実行時の入力値を設定します"
+                  placeholder="Set input value for execution"
                 />
               </div>
             )}
@@ -89,16 +89,16 @@ const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
         )}
         {editingNode.type === 'llm' && (
           <>
-            <div><label className="block text-xs font-medium mb-1 text-gray-600">システムプロンプト</label><textarea value={editingNode.data.systemPrompt || ''} onChange={(e) => handleDataChange({ systemPrompt: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md resize-none" style={{ height: `${calculateTextAreaHeight(5)}px` }} placeholder="LLMの役割や応答に関する指示を入力..." /></div>
+            <div><label className="block text-xs font-medium mb-1 text-gray-600">System Prompt</label><textarea value={editingNode.data.systemPrompt || ''} onChange={(e) => handleDataChange({ systemPrompt: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md resize-none" style={{ height: `${calculateTextAreaHeight(5)}px` }} placeholder="Enter instructions for LLM role and response..." /></div>
             <div><label className="block text-xs font-medium mb-1 text-gray-600">Temperature</label><input type="number" value={editingNode.data.temperature || 0.7} onChange={(e) => handleDataChange({ temperature: parseFloat(e.target.value) })} className="w-full px-2 py-1.5 text-sm border rounded-md" min="0" max="2" step="0.1" /></div>
             
             {/* プロバイダー選択 */}
-            <div><label className="block text-xs font-medium mb-1 text-gray-600">プロバイダー</label><select value={editingNode.data.provider || 'openai'} onChange={(e) => handleDataChange({ provider: e.target.value, model: e.target.value === 'openai' ? 'gpt-5-nano' : e.target.value === 'anthropic' ? 'claude-3-5-sonnet-20241022' : e.target.value === 'local' ? 'llama2' : 'custom-model' })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="local">ローカルLLM</option><option value="custom">カスタムAPI</option></select></div>
+            <div><label className="block text-xs font-medium mb-1 text-gray-600">Provider</label><select value={editingNode.data.provider || 'openai'} onChange={(e) => handleDataChange({ provider: e.target.value, model: e.target.value === 'openai' ? 'gpt-5-nano' : e.target.value === 'anthropic' ? 'claude-3-5-sonnet-20241022' : e.target.value === 'local' ? 'llama2' : 'custom-model' })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="local">Local LLM</option><option value="custom">Custom API</option></select></div>
             
             {/* モデル選択 */}
-            <div><label className="block text-xs font-medium mb-1 text-gray-600">モデル</label>
+            <div><label className="block text-xs font-medium mb-1 text-gray-600">Model</label>
             {(editingNode.data.provider === 'local' || editingNode.data.provider === 'custom') ? (
-              <input type="text" value={editingNode.data.model || ''} onChange={(e) => handleDataChange({ model: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="モデル名を入力してください" />
+              <input type="text" value={editingNode.data.model || ''} onChange={(e) => handleDataChange({ model: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="Enter model name" />
             ) : (
               <select value={editingNode.data.model || (editingNode.data.provider === 'anthropic' ? 'claude-3-5-sonnet-20241022' : 'gpt-5-nano')} onChange={(e) => handleDataChange({ model: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md">
                 {editingNode.data.provider === 'anthropic' ? (
@@ -119,13 +119,13 @@ const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
             </div>
           </>
         )}
-        {editingNode.type === 'if' && ( <><div><label className="block text-xs font-medium mb-1 text-gray-600">条件タイプ</label><select value={editingNode.data.conditionType || 'llm'} onChange={(e) => handleDataChange({ conditionType: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="llm">LLM判断</option><option value="variable">変数比較</option></select></div>{editingNode.data.conditionType === 'llm' ? (<><div><label className="block text-xs font-medium mb-1 text-gray-600">判断条件</label><textarea value={editingNode.data.condition || ''} onChange={(e) => handleDataChange({ condition: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" rows={3} placeholder="LLMに判断させる条件を入力" /></div><div><label className="block text-xs font-medium mb-1 text-gray-600">Temperature</label><input type="number" value={editingNode.data.temperature || 0.7} onChange={(e) => handleDataChange({ temperature: parseFloat(e.target.value) })} className="w-full px-2 py-1.5 text-sm border rounded-md" min="0" max="2" step="0.1" /></div>            {/* プロバイダー選択 */}
-            <div><label className="block text-xs font-medium mb-1 text-gray-600">プロバイダー</label><select value={editingNode.data.provider || 'openai'} onChange={(e) => handleDataChange({ provider: e.target.value, model: e.target.value === 'openai' ? 'gpt-5-nano' : e.target.value === 'anthropic' ? 'claude-3-5-sonnet-20241022' : e.target.value === 'local' ? 'llama2' : 'custom-model' })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="local">ローカルLLM</option><option value="custom">カスタムAPI</option></select></div>
+        {editingNode.type === 'if' && ( <><div><label className="block text-xs font-medium mb-1 text-gray-600">Condition Type</label><select value={editingNode.data.conditionType || 'llm'} onChange={(e) => handleDataChange({ conditionType: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="llm">LLM Judgment</option><option value="variable">Variable Comparison</option></select></div>{editingNode.data.conditionType === 'llm' ? (<><div><label className="block text-xs font-medium mb-1 text-gray-600">Judgment Condition</label><textarea value={editingNode.data.condition || ''} onChange={(e) => handleDataChange({ condition: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" rows={3} placeholder="Enter condition for LLM to judge" /></div><div><label className="block text-xs font-medium mb-1 text-gray-600">Temperature</label><input type="number" value={editingNode.data.temperature || 0.7} onChange={(e) => handleDataChange({ temperature: parseFloat(e.target.value) })} className="w-full px-2 py-1.5 text-sm border rounded-md" min="0" max="2" step="0.1" /></div>            {/* プロバイダー選択 */}
+            <div><label className="block text-xs font-medium mb-1 text-gray-600">Provider</label><select value={editingNode.data.provider || 'openai'} onChange={(e) => handleDataChange({ provider: e.target.value, model: e.target.value === 'openai' ? 'gpt-5-nano' : e.target.value === 'anthropic' ? 'claude-3-5-sonnet-20241022' : e.target.value === 'local' ? 'llama2' : 'custom-model' })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="local">Local LLM</option><option value="custom">Custom API</option></select></div>
             
             {/* モデル選択 */}
-            <div><label className="block text-xs font-medium mb-1 text-gray-600">モデル</label>
+            <div><label className="block text-xs font-medium mb-1 text-gray-600">Model</label>
             {(editingNode.data.provider === 'local' || editingNode.data.provider === 'custom') ? (
-              <input type="text" value={editingNode.data.model || ''} onChange={(e) => handleDataChange({ model: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="モデル名を入力してください" />
+              <input type="text" value={editingNode.data.model || ''} onChange={(e) => handleDataChange({ model: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="Enter model name" />
             ) : (
               <select value={editingNode.data.model || (editingNode.data.provider === 'anthropic' ? 'claude-3-5-sonnet-20241022' : 'gpt-5-nano')} onChange={(e) => handleDataChange({ model: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md">
                 {editingNode.data.provider === 'anthropic' ? (
@@ -143,15 +143,15 @@ const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
                 )}
               </select>
             )}
-            </div></>) : (<><div><label className="block text-xs font-medium mb-1 text-gray-600">変数名</label><input type="text" value={editingNode.data.variable || ''} onChange={(e) => handleDataChange({ variable: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="比較する変数名" /></div><div><label className="block text-xs font-medium mb-1 text-gray-600">演算子</label><select value={editingNode.data.operator || '=='} onChange={(e) => handleDataChange({ operator: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="==">==(等しい)</option><option value="!=">!=(等しくない)</option><option value="<">&lt;(より小さい)</option><option value="<=">&lt;=(以下)</option><option value=">">&gt;(より大きい)</option><option value=">=">&gt;=(以上)</option></select></div><div><label className="block text-xs font-medium mb-1 text-gray-600">比較値</label><input type="text" value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="比較する値" /></div></>)}</> )}
-        {editingNode.type === 'while' && ( <><div><label className="block text-xs font-medium mb-1 text-gray-600">条件タイプ</label><select value={editingNode.data.conditionType || 'variable'} onChange={(e) => handleDataChange({ conditionType: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="variable">変数比較</option><option value="llm">LLM判断</option></select></div>{editingNode.data.conditionType === 'variable' ? (<><div><label className="block text-xs font-medium mb-1 text-gray-600">変数名</label><input type="text" value={editingNode.data.variable || ''} onChange={(e) => handleDataChange({ variable: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="比較する変数名" /></div><div><label className="block text-xs font-medium mb-1 text-gray-600">演算子</label><select value={editingNode.data.operator || '<'} onChange={(e) => handleDataChange({ operator: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="==">==(等しい)</option><option value="!=">!=(等しくない)</option><option value="<">&lt;(より小さい)</option><option value="<=">&lt;=(以下)</option><option value=">">&gt;(より大きい)</option><option value=">=">&gt;=(以上)</option></select></div><div><label className="block text-xs font-medium mb-1 text-gray-600">比較値</label><input type="text" value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="比較する値" /></div></>) : (<div><label className="block text-xs font-medium mb-1 text-gray-600">継続条件</label><textarea value={editingNode.data.condition || ''} onChange={(e) => handleDataChange({ condition: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" rows={3} placeholder="繰り返しを継続する条件を入力" /></div>)}<div><label className="block text-xs font-medium mb-1 text-gray-600">最大繰り返し回数</label><input type="number" value={editingNode.data.maxIterations || 100} onChange={(e) => handleDataChange({ maxIterations: parseInt(e.target.value) })} className="w-full px-2 py-1.5 text-sm border rounded-md" min="1" max="1000" /></div></> )}
-        {editingNode.type === 'output' && ( <><div><label className="block text-xs font-medium mb-1 text-gray-600">出力形式</label><select value={editingNode.data.format || 'text'} onChange={(e) => handleDataChange({ format: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="text">テキスト</option><option value="json">JSON</option><option value="markdown">Markdown</option></select></div><div><label className="block text-xs font-medium mb-1 text-gray-600">実行結果</label><textarea value={String(editingNode.data.result || '')} readOnly className="w-full px-3 py-2 border rounded-md bg-gray-100 resize-none" style={{ height: `${calculateTextAreaHeight(5)}px` }} /></div></> )}
+            </div></>) : (<><div><label className="block text-xs font-medium mb-1 text-gray-600">Variable Name</label><input type="text" value={editingNode.data.variable || ''} onChange={(e) => handleDataChange({ variable: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="Variable name to compare" /></div><div><label className="block text-xs font-medium mb-1 text-gray-600">Operator</label><select value={editingNode.data.operator || '=='} onChange={(e) => handleDataChange({ operator: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="==">== (Equal)</option><option value="!=">!= (Not Equal)</option><option value="<">&lt; (Less Than)</option><option value="<=">&lt;= (Less Than or Equal)</option><option value=">">&gt; (Greater Than)</option><option value=">=">&gt;= (Greater Than or Equal)</option></select></div><div><label className="block text-xs font-medium mb-1 text-gray-600">Comparison Value</label><input type="text" value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="Value to compare" /></div></>)}</> )}
+        {editingNode.type === 'while' && ( <><div><label className="block text-xs font-medium mb-1 text-gray-600">Condition Type</label><select value={editingNode.data.conditionType || 'variable'} onChange={(e) => handleDataChange({ conditionType: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="variable">Variable Comparison</option><option value="llm">LLM Judgment</option></select></div>{editingNode.data.conditionType === 'variable' ? (<><div><label className="block text-xs font-medium mb-1 text-gray-600">Variable Name</label><input type="text" value={editingNode.data.variable || ''} onChange={(e) => handleDataChange({ variable: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="Variable name to compare" /></div><div><label className="block text-xs font-medium mb-1 text-gray-600">Operator</label><select value={editingNode.data.operator || '<'} onChange={(e) => handleDataChange({ operator: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="==">== (Equal)</option><option value="!=">!= (Not Equal)</option><option value="<">&lt; (Less Than)</option><option value="<=">&lt;= (Less Than or Equal)</option><option value=">">&gt; (Greater Than)</option><option value=">=">&gt;= (Greater Than or Equal)</option></select></div><div><label className="block text-xs font-medium mb-1 text-gray-600">Comparison Value</label><input type="text" value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="Value to compare" /></div></>) : (<div><label className="block text-xs font-medium mb-1 text-gray-600">Continue Condition</label><textarea value={editingNode.data.condition || ''} onChange={(e) => handleDataChange({ condition: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" rows={3} placeholder="Enter condition to continue iteration" /></div>)}<div><label className="block text-xs font-medium mb-1 text-gray-600">Max Iterations</label><input type="number" value={editingNode.data.maxIterations || 100} onChange={(e) => handleDataChange({ maxIterations: parseInt(e.target.value) })} className="w-full px-2 py-1.5 text-sm border rounded-md" min="1" max="1000" /></div></> )}
+        {editingNode.type === 'output' && ( <><div><label className="block text-xs font-medium mb-1 text-gray-600">Output Format</label><select value={editingNode.data.format || 'text'} onChange={(e) => handleDataChange({ format: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="text">Text</option><option value="json">JSON</option><option value="markdown">Markdown</option></select></div><div><label className="block text-xs font-medium mb-1 text-gray-600">Execution Result</label><textarea value={String(editingNode.data.result || '')} readOnly className="w-full px-3 py-2 border rounded-md bg-gray-100 resize-none" style={{ height: `${calculateTextAreaHeight(5)}px` }} /></div></> )}
         {editingNode.type === 'variable_set' && (
           <>
-            <div><label className="block text-xs font-medium mb-1 text-gray-600">変数名</label><input type="text" value={editingNode.data.variableName || ''} onChange={(e) => handleDataChange({ variableName: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="設定する変数名" /></div>
-            <div><label className="block text-xs font-medium mb-1 text-gray-600">値の設定方法</label><select value={editingNode.data.useInput ? 'input' : 'manual'} onChange={(e) => handleDataChange({ useInput: e.target.value === 'input' })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="manual">直接入力</option><option value="input">接続からの入力</option></select></div>
+            <div><label className="block text-xs font-medium mb-1 text-gray-600">Variable Name</label><input type="text" value={editingNode.data.variableName || ''} onChange={(e) => handleDataChange({ variableName: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="Variable name to set" /></div>
+            <div><label className="block text-xs font-medium mb-1 text-gray-600">Value Setting Method</label><select value={editingNode.data.useInput ? 'input' : 'manual'} onChange={(e) => handleDataChange({ useInput: e.target.value === 'input' })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="manual">Direct Input</option><option value="input">Input from Connection</option></select></div>
             {!editingNode.data.useInput && (
-              <div><label className="block text-xs font-medium mb-1 text-gray-600">設定値</label><textarea value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" rows={3} placeholder="変数に設定する値" /></div>
+              <div><label className="block text-xs font-medium mb-1 text-gray-600">Set Value</label><textarea value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" rows={3} placeholder="Value to set to variable" /></div>
             )}
           </>
         )}
@@ -166,10 +166,10 @@ const Layout = ({ children, currentView, onViewChange, editingNode, onEditingNod
   const { setSidebarOpen } = useUIActions()
 
   const menuItems = [
-    { id: 'workflow', label: 'ワークフロー', icon: Workflow },
-    { id: 'chat', label: 'チャット', icon: MessageSquare },
-    { id: 'data', label: 'データ管理', icon: Database },
-    { id: 'settings', label: '設定', icon: Settings },
+    { id: 'workflow', label: 'Workflow', icon: Workflow },
+    { id: 'chat', label: 'Chat', icon: MessageSquare },
+    { id: 'data', label: 'Data', icon: Database },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ]
 
   return (
@@ -177,7 +177,7 @@ const Layout = ({ children, currentView, onViewChange, editingNode, onEditingNod
       <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 bg-white shadow-lg flex flex-col`}>
         <div className="p-4 border-b">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-gray-800">LLM Agent Lite</h1>
+            <h1 className="text-xl font-bold text-gray-800">🌊 flomoji</h1>
             <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(false)} className="md:hidden"><X className="h-4 w-4" /></Button>
           </div>
         </div>

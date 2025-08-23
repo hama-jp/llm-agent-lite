@@ -1,6 +1,6 @@
-# 🌊 仮称: flomoji
+# 🌊 flomoji
 
-**A lightweight LLM agent development tool that runs entirely in your browser**
+**Visual LLM workflow builder for everyone**
 
 flomoji enables AI conversations and workflow automation without complex setup. Supporting various AI providers including OpenAI, Anthropic, and local LLMs, it streamlines your work through prompt chaining and multi-step processing.
 

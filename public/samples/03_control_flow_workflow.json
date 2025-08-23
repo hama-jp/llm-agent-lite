@@ -1,6 +1,6 @@
 {
   "id": "sample-03-control-flow",
-  "name": "03 - 条件分岐 (If)",
+  "name": "03 - Control Flow (If)",
   "nodes": [
     {
       "id": "input_topic",
@@ -8,8 +8,8 @@
       "position": { "x": 50, "y": 250 },
       "size": { "width": 200, "height": 168 },
       "data": {
-        "label": "トピック",
-        "value": "ReactのuseStateフック",
+        "label": "Topic",
+        "value": "React useState Hook",
         "inputType": "text"
       }
     },
@@ -19,9 +19,9 @@
       "position": { "x": 300, "y": 250 },
       "size": { "width": 240, "height": 180 },
       "data": {
-        "label": "トピック判定",
+        "label": "Topic Classification",
         "conditionType": "llm",
-        "condition": "入力されたトピックは技術的な内容（プログラミング、IT、科学、工学、数学など）ですか？技術的な内容の場合は「true」、そうでない場合は「false」のみを答えてください。",
+        "condition": "Is the input topic technical content (programming, IT, science, engineering, mathematics, etc.)? Please answer only 'true' for technical content, or 'false' for non-technical content.",
         "variable": "", "operator": "==", "value": "",
         "model": "gpt-5-nano", "temperature": 1.0
       }
@@ -58,8 +58,8 @@
       "position": { "x": 980, "y": 250 },
       "size": { "width": 220, "height": 180 },
       "data": {
-        "label": "生成結果",
-        "format": "text", "title": "生成結果", "result": ""
+        "label": "Generated Result",
+        "format": "text", "title": "Generated Result", "result": ""
       }
     }
   ],

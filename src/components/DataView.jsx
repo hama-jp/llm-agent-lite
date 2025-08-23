@@ -113,9 +113,9 @@ const DataView = () => {
         }
         
         loadData()
-        alert('データのインポートが完了しました')
+        alert('Data import completed successfully')
       } catch (error) {
-        alert('ファイルの読み込みに失敗しました: ' + error.message)
+        alert('Failed to read file: ' + error.message)
       }
     }
     reader.readAsText(file)
@@ -123,31 +123,31 @@ const DataView = () => {
   }
 
   const handleDeleteWorkflow = (id) => {
-    if (confirm('このワークフローを削除しますか？')) {
+    if (confirm('Delete this workflow?')) {
       workflowManagerService.deleteWorkflow(id);
       loadData();
     }
   }
 
   const handleClearExecutionLogs = async () => {
-    if (confirm('すべての実行履歴を削除しますか？この操作は取り消せません。')) {
+    if (confirm('Delete all execution history? This action cannot be undone.')) {
       try {
         await logService.clearAllLogs()
-        alert('実行履歴が削除されました')
+        alert('Execution history has been deleted')
       } catch (error) {
         console.error('実行履歴の削除に失敗しました:', error)
-        alert('実行履歴の削除に失敗しました')
+        alert('Failed to delete execution history')
       }
     }
   }
 
   const handleClearAllData = () => {
-    if (confirm('すべてのデータを削除しますか？この操作は取り消せません。')) {
+    if (confirm('Delete all data? This action cannot be undone.')) {
       StorageService.clear() // 全てのStorageServiceキーをクリア
       // 実行履歴も削除
       logService.clearAllLogs().catch(console.error)
       loadData()
-      alert('すべてのデータが削除されました')
+      alert('All data has been deleted')
     }
   }
 
@@ -158,7 +158,7 @@ const DataView = () => {
   }
 
   const formatDate = (dateString) => {
-    if (!dateString) return '不明'
+    if (!dateString) return 'Unknown'
     try {
       return new Date(dateString).toLocaleString('ja-JP')
     } catch {
@@ -170,25 +170,25 @@ const DataView = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">データ管理</h2>
-          <p className="text-gray-600">チャット履歴やワークフローデータの管理・エクスポート</p>
+          <h2 className="text-2xl font-bold text-gray-900">Data Management</h2>
+          <p className="text-gray-600">Manage and export chat history and workflow data</p>
         </div>
         <div className="flex space-x-2">
           <input type="file" accept=".json" onChange={handleImportData} className="hidden" id="import-file" />
           <Button variant="outline" onClick={() => document.getElementById('import-file').click()}>
-            <Upload className="h-4 w-4 mr-2" />インポート
+            <Upload className="h-4 w-4 mr-2" />Import
           </Button>
           <Button onClick={() => handleExportData('all')}>
-            <Download className="h-4 w-4 mr-2" />全データエクスポート
+            <Download className="h-4 w-4 mr-2" />Export All Data
           </Button>
         </div>
       </div>
 
       <Tabs defaultValue="chat" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="chat">チャット履歴</TabsTrigger>
-          <TabsTrigger value="workflows">ワークフロー</TabsTrigger>
-          <TabsTrigger value="settings">設定・その他</TabsTrigger>
+          <TabsTrigger value="chat">Chat History</TabsTrigger>
+          <TabsTrigger value="workflows">Workflows</TabsTrigger>
+          <TabsTrigger value="settings">Settings & Other</TabsTrigger>
         </TabsList>
 
         <TabsContent value="chat" className="space-y-4">
@@ -197,9 +197,9 @@ const DataView = () => {
 
         <TabsContent value="workflows" className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">ワークフロー ({workflowData.length}個)</h3>
+            <h3 className="text-lg font-semibold">Workflows ({workflowData.length} items)</h3>
             <Button variant="outline" onClick={() => handleExportData('workflows')} disabled={workflowData.length === 0}>
-              <Download className="h-4 w-4 mr-2" />ワークフローエクスポート
+              <Download className="h-4 w-4 mr-2" />Export Workflows
             </Button>
           </div>
           <Card>
@@ -211,11 +211,11 @@ const DataView = () => {
                       <Workflow className="h-5 w-5 text-gray-500" />
                       <div>
                         <p className="font-medium">{workflow.name}</p>
-                        <p className="text-sm text-gray-500">{workflow.nodes.length} ノード, {workflow.connections.length} 接続</p>
+                        <p className="text-sm text-gray-500">{workflow.nodes.length} nodes, {workflow.connections.length} connections</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
-                      <span className="text-sm text-gray-500">最終更新: {formatDate(workflow.lastModified)}</span>
+                      <span className="text-sm text-gray-500">Last modified: {formatDate(workflow.lastModified)}</span>
                       <Button variant="outline" size="sm" onClick={() => handleDeleteWorkflow(workflow.id)} className="text-red-600 hover:text-red-700">
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -224,7 +224,7 @@ const DataView = () => {
                 ))}
               </div>
               {workflowData.length === 0 && (
-                <p className="text-gray-500 text-center py-8">ワークフローがありません</p>
+                <p className="text-gray-500 text-center py-8">No workflows available</p>
               )}
             </CardContent>
           </Card>
@@ -232,19 +232,19 @@ const DataView = () => {
 
         <TabsContent value="settings" className="space-y-4">
           <Card>
-            <CardHeader><CardTitle>データ管理</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Data Management</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-                <div><h4 className="font-medium">ローカルストレージ使用量</h4><p className="text-sm text-gray-600">設定やデータの保存に使用</p></div>
+                <div><h4 className="font-medium">Local Storage Usage</h4><p className="text-sm text-gray-600">Used for storing settings and data</p></div>
                 <Badge variant="outline">{calculateStorageSize()}</Badge>
               </div>
               <div className="flex justify-between items-center p-4 bg-yellow-50 rounded-lg">
-                <div><h4 className="font-medium text-yellow-800">実行履歴削除</h4><p className="text-sm text-yellow-600">ワークフローの実行履歴をすべて削除</p></div>
-                <Button variant="outline" onClick={handleClearExecutionLogs} className="text-yellow-800 border-yellow-300 hover:bg-yellow-100"><History className="h-4 w-4 mr-2" />履歴削除</Button>
+                <div><h4 className="font-medium text-yellow-800">Clear Execution History</h4><p className="text-sm text-yellow-600">Delete all workflow execution history</p></div>
+                <Button variant="outline" onClick={handleClearExecutionLogs} className="text-yellow-800 border-yellow-300 hover:bg-yellow-100"><History className="h-4 w-4 mr-2" />Clear History</Button>
               </div>
               <div className="flex justify-between items-center p-4 bg-red-50 rounded-lg">
-                <div><h4 className="font-medium text-red-800">全データ削除</h4><p className="text-sm text-red-600">すべての設定、チャット履歴、ワークフローデータを削除</p></div>
-                <Button variant="destructive" onClick={handleClearAllData}><Trash2 className="h-4 w-4 mr-2" />全削除</Button>
+                <div><h4 className="font-medium text-red-800">Delete All Data</h4><p className="text-sm text-red-600">Delete all settings, chat history, and workflow data</p></div>
+                <Button variant="destructive" onClick={handleClearAllData}><Trash2 className="h-4 w-4 mr-2" />Delete All</Button>
               </div>
             </CardContent>
           </Card>

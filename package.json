@@ -2,7 +2,7 @@
   "name": "flomoji",
   "private": false,
   "version": "0.0.1",
-  "description": "A lightweight LLM agent development tool that runs entirely in your browser",
+  "description": "🌊 flomoji - Visual LLM workflow builder for everyone",
   "author": "hama-jp",
   "license": "Apache-2.0",
   "repository": {

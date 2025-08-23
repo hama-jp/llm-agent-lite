@@ -1,6 +1,6 @@
 {
   "id": "sample-01-simple",
-  "name": "01 - シンプルな入出力",
+  "name": "01 - Simple Input/Output",
   "nodes": [
     {
       "id": "input_1",
@@ -14,8 +14,8 @@
         "height": 168
       },
       "data": {
-        "label": "入力",
-        "value": "こんにちは、世界！",
+        "label": "Input",
+        "value": "Hello, World!",
         "inputType": "text"
       }
     },
@@ -31,9 +31,9 @@
         "height": 168
       },
       "data": {
-        "label": "出力",
+        "label": "Output",
         "format": "text",
-        "title": "結果",
+        "title": "Result",
         "result": ""
       }
     }

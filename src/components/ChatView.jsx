@@ -12,7 +12,7 @@ const ChatView = () => {
     {
       id: 1,
       type: 'bot',
-      content: 'こんにちは！LLM Agent Liteへようこそ。何かお手伝いできることはありますか？',
+      content: 'Hello! Welcome to 🌊 flomoji. How can I help you today?',
       timestamp: new Date().toLocaleTimeString()
     }
   ])
@@ -68,7 +68,7 @@ const ChatView = () => {
       const errorMessage = {
         id: Date.now() + 1,
         type: 'bot',
-        content: `エラーが発生しました: ${error.message}`,
+        content: `An error occurred: ${error.message}`,
         timestamp: new Date().toLocaleTimeString(),
         isError: true
       }
@@ -87,12 +87,12 @@ const ChatView = () => {
   }
 
   const handleClearChat = () => {
-    if (confirm('チャット履歴をクリアしますか？')) {
+    if (confirm('Clear chat history?')) {
       setMessages([
         {
           id: 1,
           type: 'bot',
-          content: 'チャット履歴がクリアされました。新しい会話を始めましょう！',
+          content: 'Chat history cleared. Let\'s start a new conversation!',
           timestamp: new Date().toLocaleTimeString()
         }
       ])
@@ -118,7 +118,7 @@ const ChatView = () => {
           <AlertDescription className="text-red-800">
             {error}
             <br />
-            <span className="text-sm">設定画面でAPIキーとエンドポイントを確認してください。</span>
+            <span className="text-sm">Please check your API key and endpoint in settings.</span>
           </AlertDescription>
         </Alert>
       )}
@@ -177,7 +177,7 @@ const ChatView = () => {
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   </div>
-                  <span className="text-sm text-gray-500">応答を生成中...</span>
+                  <span className="text-sm text-gray-500">Generating response...</span>
                 </div>
               </CardContent>
             </Card>
@@ -192,7 +192,7 @@ const ChatView = () => {
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="メッセージを入力してください..."
+          placeholder="Enter your message..."
           disabled={isLoading}
           className="flex-1"
         />
@@ -208,7 +208,7 @@ const ChatView = () => {
           variant="outline"
           size="icon"
           disabled={isLoading}
-          title="チャット履歴をクリア"
+          title="Clear chat history"
         >
           <Bot className="h-4 w-4" />
         </Button>
