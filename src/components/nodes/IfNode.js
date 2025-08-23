@@ -19,7 +19,10 @@ async function executeIfNode(node, inputs, context) {
   // 注意：If条件分岐は複雑な制御フローのため、
   // nodeExecutionService.js の executeIfNode を使用します
   // この実行メソッドは placeholder として存在します
-  throw new Error('If条件分岐ノードは、従来の実行システム（nodeExecutionService）を使用します');
+  
+  // プレースホルダーとして基本的な値を返す
+  // 実際の実行は nodeExecutionService で行われる
+  return inputs.input || '';
 }
 
 /**
