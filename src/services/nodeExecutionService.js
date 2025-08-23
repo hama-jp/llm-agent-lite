@@ -302,9 +302,9 @@ class NodeExecutionService {
         if (sourceNode.type === 'if') {
           // 'if' node output is an object { condition, true, false }
           // Port 0 ('true') or Port 1 ('false')
-          if (conn.from.portIndex === 0 && sourceOutput.condition) {
+          if (conn.from.portIndex === 0) {
             valueToAssign = sourceOutput.true;
-          } else if (conn.from.portIndex === 1 && !sourceOutput.condition) {
+          } else if (conn.from.portIndex === 1) {
             valueToAssign = sourceOutput.false;
           }
         } else {
