@@ -6,27 +6,30 @@ LLM Agent Lite (flomoji) のシステムアーキテクチャとデザイン決�
 
 ```mermaid
 graph TB
-    subgraph "Frontend (React)"
+    subgraph Frontend["Frontend (React)"]
         UI[UI Components]
         Store[Zustand Store]
         Hooks[Custom Hooks]
     end
     
-    subgraph "Services Layer"
+    subgraph Services["Services Layer"]
         Storage[StorageService]
         LLM[LLMService]
         Execution[NodeExecutionService]
         Workflow[WorkflowManagerService]
     end
     
-    subgraph "External"
+    subgraph External["External"]
         LocalStorage[(LocalStorage)]
         LLMAPI[LLM APIs]
     end
     
     UI --> Store
     Store --> Hooks
-    Hooks --> Services Layer
+    Hooks --> Storage
+    Hooks --> LLM
+    Hooks --> Execution
+    Hooks --> Workflow
     Storage --> LocalStorage
     LLM --> LLMAPI
 ```
