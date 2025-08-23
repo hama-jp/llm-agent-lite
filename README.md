@@ -24,7 +24,11 @@ flomojiは、複雑な環境構築なしにAIとの対話やワークフロー�
 
 ## 🚀 Quick Start (利用方法)
 
-The easiest way to use flomoji is directly in your browser without any setup.
+### 🌐 Try Online (オンラインで試す)
+**Instant access**: [**👉 Launch flomoji**](https://hama-jp.github.io/llm-agent-lite/) - No download required!
+
+### 📥 Download for Offline Use
+The easiest way to use flomoji locally is directly in your browser without any setup.
 
 1.  **Download**: [Click here to download the latest version.](https://github.com/hama-jp/llm-agent-lite/archive/refs/heads/gh-pages.zip)
 2.  **Unzip**: Extract the downloaded ZIP file.
