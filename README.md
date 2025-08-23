@@ -37,6 +37,15 @@ That's it! You can start using the application immediately.
 
 If you want to run the app locally or contribute to development:
 
+### 📚 Documentation (ドキュメント)
+
+- **[Quick Start Guide](docs/QUICK_START.md)** - Get started in 5 minutes / 5分で始める開発環境構築
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute / 貢献ガイドライン
+- **[Architecture Overview](docs/ARCHITECTURE.md)** - System design / システム設計
+- **[Node Development](docs/NODE_DEVELOPMENT.md)** - Create custom nodes / カスタムノード開発
+
+### 🚀 Quick Setup
+
 **Run locally:**
 ```bash
 # Install dependencies
@@ -64,6 +73,14 @@ The output files will be in the `dist` folder. You can deploy this folder to any
 
 This project is licensed under the MIT License.
 
+## 🤝 Contributing (貢献)
+
+We welcome contributions! Please check our [Contributing Guide](CONTRIBUTING.md) to get started.
+
+貢献を歓迎します！[貢献ガイド](CONTRIBUTING.md)をご確認ください。
+
 ## ❤️ Support (サポート)
 
 If you have any issues or feature requests, please open an issue on GitHub.
+
+問題や機能リクエストがある場合は、GitHubでIssueを作成してください。
