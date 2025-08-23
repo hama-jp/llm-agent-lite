@@ -135,11 +135,6 @@ const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
             )}
           </>
         )}
-        {editingNode.type === 'variable_get' && (
-          <>
-            <div><label className="block text-xs font-medium mb-1 text-gray-600">変数名</label><input type="text" value={editingNode.data.variableName || ''} onChange={(e) => handleDataChange({ variableName: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="取得する変数名" /></div>
-          </>
-        )}
       </div>
     </div>
   )

@@ -1,0 +1,84 @@
+import { createNodeDefinition } from './types.js';
+
+/**
+ * [ノード名]ノードの実行処理
+ * @param {Object} node - ノードオブジェクト
+ * @param {Object} inputs - 入力データ（ポート名をキーとするオブジェクト）
+ * @param {Object} context - 実行コンテキスト
+ * @param {Object} context.variables - ワークフロー変数
+ * @param {Function} context.addLog - ログ追加関数
+ * @returns {Promise<any>} 処理結果
+ */
+async function execute[ノードクラス名]Node(node, inputs, context) {
+  // ここに実際の処理ロジックを記述
+  
+  // 入力データの取得例
+  const inputValue = inputs['input_port_name'] || '';
+  
+  // 設定値の取得例
+  const setting = node.data.settingName || 'default';
+  
+  // ログ出力例
+  context.addLog('info', '処理を開始しました', node.id, { inputValue, setting });
+  
+  // 変数の読み書き例
+  const myVar = context.variables['variableName'];
+  context.variables['newVariable'] = 'newValue';
+  
+  // 外部サービスの呼び出し例（必要に応じて）
+  // const { default: someService } = await import('../../services/someService.js');
+  // const result = await someService.doSomething(inputValue);
+  
+  // 処理結果を返す
+  return inputValue; // または処理した結果
+}
+
+/**
+ * [ノード名]ノードの定義
+ * [ノードの機能説明]
+ */
+export const [ノードクラス名]Node = createNodeDefinition(
+  '[表示名]',
+  '[アイコン絵文字]',
+  '[色テーマ]', // orange, blue, green, teal, pink, purple, amber, cyan から選択
+  ['[入力ポート名]'], // 入力ポート配列（必要に応じて複数指定）
+  ['[出力ポート名]'], // 出力ポート配列（必要に応じて複数指定）
+  {
+    // デフォルトデータ
+    // プロパティ名: デフォルト値
+  },
+  execute[ノードクラス名]Node, // 実行メソッド
+  {
+    description: '[ノードの詳細説明]',
+    category: '[カテゴリー名]' // 既存: input-output, ai, text-processing, control-flow, variables
+  }
+);
+
+export default [ノードクラス名]Node;
+
+/*
+新しいノードを追加する手順：
+1. このテンプレートをコピーして新しいファイルを作成
+2. [プレースホルダー]を適切な値に置き換え
+3. src/components/nodes/index.js にimport文とexportを追加
+4. 必要に応じてnodesByCategory にも追加
+5. NodeEditorで新しいノードが利用可能になります
+
+例：
+export const HttpRequestNode = createNodeDefinition(
+  'HTTP Request',
+  '🌐',
+  'blue',
+  ['url', 'method', 'body'],
+  ['response', 'error'],
+  {
+    method: 'GET',
+    headers: {},
+    timeout: 5000
+  },
+  {
+    description: 'HTTP リクエストを送信して応答を取得します',
+    category: 'network'
+  }
+);
+*/

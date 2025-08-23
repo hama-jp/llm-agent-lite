@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import nodeExecutionService from './nodeExecutionService'
 import llmService from './llmService'
+import { nodeTypes } from '../components/nodes/index.js'
 
 // Mock the llmService
 vi.mock('./llmService', () => {
@@ -24,6 +25,21 @@ vi.mock('./llmService', () => {
   };
 })
 
+// Mock the logService to avoid IndexedDB issues
+vi.mock('./logService', () => {
+  return {
+    default: {
+      createRun: vi.fn(() => Promise.resolve('test-run-id')),
+      updateRun: vi.fn(() => Promise.resolve()),
+      addNodeLog: vi.fn(() => Promise.resolve()),
+      logStep: vi.fn(() => Promise.resolve()),
+      logExecution: vi.fn(),
+      getExecutions: vi.fn(() => Promise.resolve([])),
+      clearExecutions: vi.fn(() => Promise.resolve()),
+    },
+  };
+})
+
 describe('NodeExecutionService', () => {
   beforeEach(() => {
     // Reset mocks before each test
@@ -33,6 +49,8 @@ describe('NodeExecutionService', () => {
     nodeExecutionService.executionContext = {}
     nodeExecutionService.variables = {}
     nodeExecutionService.clearLog()
+    // Ensure nodeTypes are available for testing
+    nodeExecutionService.nodeTypes = nodeTypes
   })
 
   it('should execute a simple Input -> LLM -> Output workflow in the correct order', async () => {
@@ -53,7 +71,7 @@ describe('NodeExecutionService', () => {
     llmService.sendMessage.mockResolvedValue(mockLLMResponse)
 
     // 3. Start the execution
-    const executor = nodeExecutionService.startExecution(nodes, connections, inputData)
+    const executor = await nodeExecutionService.startExecution(nodes, connections, inputData, nodeTypes)
     const executionSteps = []
 
     // 4. Run the workflow step by step and record state
@@ -97,7 +115,7 @@ describe('NodeExecutionService', () => {
       { id: 'conn_1', from: { nodeId: 'input_1', portIndex: 0 }, to: { nodeId: 'llm_1', portIndex: 0 } },
     ];
 
-    const executor = nodeExecutionService.startExecution(nodes, connections, {});
+    const executor = await nodeExecutionService.startExecution(nodes, connections, {}, nodeTypes);
 
     // Run through the workflow
     await executor.next(); // input_1
@@ -120,7 +138,7 @@ describe('NodeExecutionService', () => {
     ];
 
     // 2. Start and run the execution
-    const executor = nodeExecutionService.startExecution(nodes, connections, {});
+    const executor = await nodeExecutionService.startExecution(nodes, connections, {}, nodeTypes);
     let result = await executor.next();
     while (!result.done) {
       result = await executor.next();
