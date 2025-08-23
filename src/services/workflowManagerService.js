@@ -4,17 +4,71 @@ function generateId() {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
+async function loadSampleWorkflow(filename) {
+  try {
+    const response = await fetch(`/samples/${filename}`);
+    if (!response.ok) {
+      console.warn(`サンプルファイル ${filename} の読み込みに失敗しました`);
+      return null;
+    }
+    const workflow = await response.json();
+    return workflow;
+  } catch (error) {
+    console.warn(`サンプルファイル ${filename} の解析に失敗しました:`, error);
+    return null;
+  }
+}
+
 class WorkflowManagerService {
   constructor() {
-    this._initializeWorkflows();
+    this._initialized = false;
   }
 
-  _initializeWorkflows() {
+  async initialize() {
+    if (this._initialized) return;
+    
     const workflows = this.getWorkflows();
     if (Object.keys(workflows).length === 0) {
+      console.log('初期ワークフロー設定中...');
+      await this._loadInitialSamples();
+    }
+    this._initialized = true;
+  }
+
+  async _loadInitialSamples() {
+    const sampleFiles = [
+      '01_simple_workflow.json',
+      '02_text_combiner_workflow.json', 
+      '03_control_flow_workflow.json'
+    ];
+
+    const loadedWorkflows = [];
+    
+    for (const filename of sampleFiles) {
+      const workflow = await loadSampleWorkflow(filename);
+      if (workflow) {
+        // IDを新規生成して重複を避ける
+        const workflowWithNewId = {
+          ...workflow,
+          id: generateId(),
+          lastModified: new Date().toISOString()
+        };
+        this.saveWorkflow(workflowWithNewId);
+        loadedWorkflows.push(workflowWithNewId);
+        console.log(`サンプルワークフロー「${workflow.name}」をインポートしました`);
+      }
+    }
+
+    // 最初にロードされたワークフローを現在のワークフローに設定
+    if (loadedWorkflows.length > 0) {
+      this.setCurrentWorkflowId(loadedWorkflows[0].id);
+      console.log(`初期ワークフローとして「${loadedWorkflows[0].name}」を設定しました`);
+    } else {
+      // サンプルファイルが読み込めない場合はデフォルトワークフローを作成
       const newWorkflow = this.createNewWorkflow();
       this.saveWorkflow(newWorkflow);
       this.setCurrentWorkflowId(newWorkflow.id);
+      console.log('デフォルトワークフローを作成しました');
     }
   }
 

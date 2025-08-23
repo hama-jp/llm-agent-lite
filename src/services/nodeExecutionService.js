@@ -226,6 +226,23 @@ class NodeExecutionService {
 
   async executeNode(node, nodes, connections) {
     const inputs = this.getNodeInputs(node, connections, nodes)
+    
+    // 条件分岐スキップチェック: If条件分岐からnullのみが入力された場合はスキップ
+    const inputConnections = connections.filter(conn => conn.to.nodeId === node.id);
+    const ifConnections = inputConnections.filter(conn => {
+      const sourceNode = nodes.find(n => n.id === conn.from.nodeId);
+      return sourceNode && sourceNode.type === 'if';
+    });
+    
+    if (ifConnections.length > 0) {
+      const allInputsNull = Object.values(inputs).every(value => value === null);
+      if (allInputsNull) {
+        this.addLog('info', `条件分岐の結果、このノードの実行をスキップします`, node.id);
+        this.executionContext[node.id] = null;
+        return null;
+      }
+    }
+    
     let output
 
     // ノード定義から実行メソッドを取得
@@ -324,9 +341,14 @@ class NodeExecutionService {
         }
 
         if (valueToAssign !== undefined) {
-          // Warn if the same input name is being assigned multiple times
+          // 複数入力の場合、null値より正常値を優先
           if (inputs[inputName] !== undefined) {
             this.addLog('warn', `入力 '${inputName}' が複数の接続から供給されています`, node.id);
+            // 既存の値がnullでなく、新しい値がnullの場合は上書きしない
+            if (inputs[inputName] !== null && valueToAssign === null) {
+              this.addLog('info', `null値による上書きをスキップしました`, node.id);
+              continue; // この入力の処理をスキップ
+            }
           }
           inputs[inputName] = valueToAssign;
         }

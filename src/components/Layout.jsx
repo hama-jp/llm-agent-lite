@@ -1,10 +1,30 @@
 
+import React, { useState, useEffect, useCallback } from 'react'
 import { Menu, Settings, MessageSquare, Workflow, Database, X } from 'lucide-react'
 import { Button } from '@/components/ui/button.jsx'
 import { useStore, selectSidebarOpen, useUIActions } from '../store/index.js'
 
 const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
   if (!editingNode) return null;
+
+  // ウィンドウサイズを監視してテキストエリアの高さを動的調整
+  const [windowHeight, setWindowHeight] = useState(window.innerHeight);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowHeight(window.innerHeight);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // 動的なテキストエリア高さを計算（ウィンドウ高さの30%を基準）
+  const calculateTextAreaHeight = useCallback((minRows = 3) => {
+    const baseHeight = Math.floor(windowHeight * 0.3);
+    const minHeight = minRows * 20; // 1行あたり約20px
+    return Math.max(baseHeight, minHeight);
+  }, [windowHeight]);
 
   const handleDataChange = (partialData) => {
     if (!editingNode) return;
@@ -59,8 +79,8 @@ const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
                 <textarea
                   value={editingNode.data.value || ''}
                   onChange={(e) => handleDataChange({ value: e.target.value })}
-                  className="w-full px-2 py-1.5 text-sm border rounded-md"
-                  rows={3}
+                  className="w-full px-2 py-1.5 text-sm border rounded-md resize-none"
+                  style={{ height: `${calculateTextAreaHeight(3)}px` }}
                   placeholder="実行時の入力値を設定します"
                 />
               </div>
@@ -69,7 +89,7 @@ const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
         )}
         {editingNode.type === 'llm' && (
           <>
-            <div><label className="block text-xs font-medium mb-1 text-gray-600">システムプロンプト</label><textarea value={editingNode.data.systemPrompt || ''} onChange={(e) => handleDataChange({ systemPrompt: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" rows={5} placeholder="LLMの役割や応答に関する指示を入力..." /></div>
+            <div><label className="block text-xs font-medium mb-1 text-gray-600">システムプロンプト</label><textarea value={editingNode.data.systemPrompt || ''} onChange={(e) => handleDataChange({ systemPrompt: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md resize-none" style={{ height: `${calculateTextAreaHeight(5)}px` }} placeholder="LLMの役割や応答に関する指示を入力..." /></div>
             <div><label className="block text-xs font-medium mb-1 text-gray-600">Temperature</label><input type="number" value={editingNode.data.temperature || 0.7} onChange={(e) => handleDataChange({ temperature: parseFloat(e.target.value) })} className="w-full px-2 py-1.5 text-sm border rounded-md" min="0" max="2" step="0.1" /></div>
             
             {/* プロバイダー選択 */}
@@ -125,7 +145,7 @@ const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
             )}
             </div></>) : (<><div><label className="block text-xs font-medium mb-1 text-gray-600">変数名</label><input type="text" value={editingNode.data.variable || ''} onChange={(e) => handleDataChange({ variable: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="比較する変数名" /></div><div><label className="block text-xs font-medium mb-1 text-gray-600">演算子</label><select value={editingNode.data.operator || '=='} onChange={(e) => handleDataChange({ operator: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="==">==(等しい)</option><option value="!=">!=(等しくない)</option><option value="<">&lt;(より小さい)</option><option value="<=">&lt;=(以下)</option><option value=">">&gt;(より大きい)</option><option value=">=">&gt;=(以上)</option></select></div><div><label className="block text-xs font-medium mb-1 text-gray-600">比較値</label><input type="text" value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="比較する値" /></div></>)}</> )}
         {editingNode.type === 'while' && ( <><div><label className="block text-xs font-medium mb-1 text-gray-600">条件タイプ</label><select value={editingNode.data.conditionType || 'variable'} onChange={(e) => handleDataChange({ conditionType: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="variable">変数比較</option><option value="llm">LLM判断</option></select></div>{editingNode.data.conditionType === 'variable' ? (<><div><label className="block text-xs font-medium mb-1 text-gray-600">変数名</label><input type="text" value={editingNode.data.variable || ''} onChange={(e) => handleDataChange({ variable: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="比較する変数名" /></div><div><label className="block text-xs font-medium mb-1 text-gray-600">演算子</label><select value={editingNode.data.operator || '<'} onChange={(e) => handleDataChange({ operator: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="==">==(等しい)</option><option value="!=">!=(等しくない)</option><option value="<">&lt;(より小さい)</option><option value="<=">&lt;=(以下)</option><option value=">">&gt;(より大きい)</option><option value=">=">&gt;=(以上)</option></select></div><div><label className="block text-xs font-medium mb-1 text-gray-600">比較値</label><input type="text" value={editingNode.data.value || ''} onChange={(e) => handleDataChange({ value: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="比較する値" /></div></>) : (<div><label className="block text-xs font-medium mb-1 text-gray-600">継続条件</label><textarea value={editingNode.data.condition || ''} onChange={(e) => handleDataChange({ condition: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" rows={3} placeholder="繰り返しを継続する条件を入力" /></div>)}<div><label className="block text-xs font-medium mb-1 text-gray-600">最大繰り返し回数</label><input type="number" value={editingNode.data.maxIterations || 100} onChange={(e) => handleDataChange({ maxIterations: parseInt(e.target.value) })} className="w-full px-2 py-1.5 text-sm border rounded-md" min="1" max="1000" /></div></> )}
-        {editingNode.type === 'output' && ( <><div><label className="block text-xs font-medium mb-1 text-gray-600">出力形式</label><select value={editingNode.data.format || 'text'} onChange={(e) => handleDataChange({ format: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="text">テキスト</option><option value="json">JSON</option><option value="markdown">Markdown</option></select></div><div><label className="block text-xs font-medium mb-1 text-gray-600">実行結果</label><textarea value={String(editingNode.data.result || '')} readOnly className="w-full px-3 py-2 border rounded-md bg-gray-100" rows={5} /></div></> )}
+        {editingNode.type === 'output' && ( <><div><label className="block text-xs font-medium mb-1 text-gray-600">出力形式</label><select value={editingNode.data.format || 'text'} onChange={(e) => handleDataChange({ format: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md"><option value="text">テキスト</option><option value="json">JSON</option><option value="markdown">Markdown</option></select></div><div><label className="block text-xs font-medium mb-1 text-gray-600">実行結果</label><textarea value={String(editingNode.data.result || '')} readOnly className="w-full px-3 py-2 border rounded-md bg-gray-100 resize-none" style={{ height: `${calculateTextAreaHeight(5)}px` }} /></div></> )}
         {editingNode.type === 'variable_set' && (
           <>
             <div><label className="block text-xs font-medium mb-1 text-gray-600">変数名</label><input type="text" value={editingNode.data.variableName || ''} onChange={(e) => handleDataChange({ variableName: e.target.value })} className="w-full px-2 py-1.5 text-sm border rounded-md" placeholder="設定する変数名" /></div>

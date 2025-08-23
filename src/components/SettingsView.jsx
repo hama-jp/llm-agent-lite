@@ -211,7 +211,7 @@ const SettingsView = () => {
               id="maxTokens"
               type="number"
               min="1"
-              max="8192"
+              max="128000"
               value={settings.maxTokens}
               onChange={(e) => handleInputChange('maxTokens', parseInt(e.target.value) || 1)}
             />
