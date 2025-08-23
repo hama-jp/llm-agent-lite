@@ -1,13 +1,17 @@
-import NodeEditor from './NodeEditor.jsx'
-import ErrorBoundary from './ErrorBoundary.jsx'
+import React from 'react';
+import { ReactFlowProvider } from '@xyflow/react';
+import ReactFlowEditor from './ReactFlowEditor/index.jsx';
+import ErrorBoundary from './ErrorBoundary.jsx';
 
-const WorkflowView = (props) => {
+const WorkflowView = () => {
   return (
     <ErrorBoundary>
-      <NodeEditor {...props} />
+      <ReactFlowProvider>
+        <ReactFlowEditor />
+      </ReactFlowProvider>
     </ErrorBoundary>
-  )
-}
+  );
+};
 
 export default WorkflowView
 

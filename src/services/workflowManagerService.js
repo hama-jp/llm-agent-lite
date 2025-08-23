@@ -124,8 +124,11 @@ class WorkflowManagerService {
     return {
       id: newId,
       name: name,
-      nodes: [],
-      connections: [],
+      flow: {
+        nodes: [],
+        edges: [],
+        viewport: { x: 0, y: 0, zoom: 1 },
+      },
       lastModified: new Date().toISOString(),
     };
   }

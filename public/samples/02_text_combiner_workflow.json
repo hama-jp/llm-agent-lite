@@ -1,87 +1,74 @@
 {
   "id": "sample-02-text-combiner",
   "name": "02 - Text Combination and LLM",
-  "nodes": [
-    {
-      "id": "input_prompt_template",
-      "type": "input",
-      "position": { "x": 50, "y": 50 },
-      "size": { "width": 220, "height": 180 },
-      "data": {
-        "label": "Prompt Template",
-        "value": "Please summarize the following text.",
-        "inputType": "text"
+  "flow": {
+    "nodes": [
+      {
+        "id": "input_prompt_template",
+        "type": "input",
+        "position": { "x": 50, "y": 50 },
+        "data": {
+          "label": "Prompt Template",
+          "value": "Please summarize the following text.",
+          "inputType": "text",
+          "width": 220, "height": 180
+        }
+      },
+      {
+        "id": "input_text",
+        "type": "input",
+        "position": { "x": 50, "y": 280 },
+        "data": {
+          "label": "Text to Process",
+          "value": "Large Language Models (LLMs) are a type of artificial intelligence trained on massive amounts of text data. This enables them to perform various natural language processing tasks such as generating human-like text, summarization, translation, and question answering.",
+          "inputType": "text",
+          "width": 220, "height": 180
+        }
+      },
+      {
+        "id": "combiner_1",
+        "type": "text_combiner",
+        "position": { "x": 350, "y": 175 },
+        "data": {
+          "label": "Create Prompt",
+          "input1": "{{input1}}",
+          "input2": "{{input2}}",
+          "width": 200, "height": 210
+        }
+      },
+      {
+        "id": "llm_1",
+        "type": "llm",
+        "position": { "x": 600, "y": 175 },
+        "data": {
+          "label": "LLM Summarization",
+          "systemPrompt": "You are an excellent summarization expert. Please summarize the given text concisely and clearly. Organize the information in a readable format without missing important points.",
+          "prompt": "Please summarize the following text.",
+          "temperature": 1.0,
+          "model": "gpt-5-nano",
+          "width": 320, "height": 240
+        }
+      },
+      {
+        "id": "output_1",
+        "type": "output",
+        "position": { "x": 970, "y": 200 },
+        "data": {
+          "label": "Summary Result",
+          "format": "text",
+          "title": "Summary Result",
+          "result": "",
+          "width": 220, "height": 180
+        }
       }
-    },
-    {
-      "id": "input_text",
-      "type": "input",
-      "position": { "x": 50, "y": 280 },
-      "size": { "width": 220, "height": 180 },
-      "data": {
-        "label": "Text to Process",
-        "value": "Large Language Models (LLMs) are a type of artificial intelligence trained on massive amounts of text data. This enables them to perform various natural language processing tasks such as generating human-like text, summarization, translation, and question answering.",
-        "inputType": "text"
-      }
-    },
-    {
-      "id": "combiner_1",
-      "type": "text_combiner",
-      "position": { "x": 350, "y": 175 },
-      "size": { "width": 200, "height": 210 },
-      "data": {
-        "label": "Create Prompt",
-        "input1": "{{input1}}",
-        "input2": "{{input2}}"
-      }
-    },
-    {
-      "id": "llm_1",
-      "type": "llm",
-      "position": { "x": 600, "y": 175 },
-      "size": { "width": 320, "height": 240 },
-      "data": {
-        "label": "LLM Summarization",
-        "systemPrompt": "You are an excellent summarization expert. Please summarize the given text concisely and clearly. Organize the information in a readable format without missing important points.",
-        "prompt": "Please summarize the following text.",
-        "temperature": 1.0,
-        "model": "gpt-5-nano"
-      }
-    },
-    {
-      "id": "output_1",
-      "type": "output",
-      "position": { "x": 970, "y": 200 },
-      "size": { "width": 220, "height": 180 },
-      "data": {
-        "label": "Summary Result",
-        "format": "text",
-        "title": "Summary Result",
-        "result": ""
-      }
-    }
-  ],
-  "connections": [
-    {
-      "id": "conn_1",
-      "from": { "nodeId": "input_prompt_template", "portIndex": 0 },
-      "to": { "nodeId": "combiner_1", "portIndex": 0 }
-    },
-    {
-      "id": "conn_2",
-      "from": { "nodeId": "input_text", "portIndex": 0 },
-      "to": { "nodeId": "combiner_1", "portIndex": 1 }
-    },
-    {
-      "id": "conn_3",
-      "from": { "nodeId": "combiner_1", "portIndex": 0 },
-      "to": { "nodeId": "llm_1", "portIndex": 0 }
-    },
-    {
-      "id": "conn_4",
-      "from": { "nodeId": "llm_1", "portIndex": 0 },
-      "to": { "nodeId": "output_1", "portIndex": 0 }
-    }
-  ],
+    ],
+    "edges": [
+      { "id": "conn_1", "source": "input_prompt_template", "target": "combiner_1", "sourceHandle": "0", "targetHandle": "0" },
+      { "id": "conn_2", "source": "input_text", "target": "combiner_1", "sourceHandle": "0", "targetHandle": "1" },
+      { "id": "conn_3", "source": "combiner_1", "target": "llm_1", "sourceHandle": "0", "targetHandle": "0" },
+      { "id": "conn_4", "source": "llm_1", "target": "output_1", "sourceHandle": "0", "targetHandle": "0" }
+    ],
+    "viewport": { "x": 0, "y": 0, "zoom": 1 }
+  },
   "lastModified": "2024-07-29T00:00:00.000Z"
 }

@@ -1,94 +1,68 @@
 {
   "id": "sample-03-control-flow",
   "name": "03 - Control Flow (If)",
-  "nodes": [
-    {
-      "id": "input_topic",
-      "type": "input",
-      "position": { "x": 50, "y": 250 },
-      "size": { "width": 200, "height": 168 },
-      "data": {
-        "label": "Topic",
-        "value": "React useState Hook",
-        "inputType": "text"
+  "flow": {
+    "nodes": [
+      {
+        "id": "input_topic",
+        "type": "input",
+        "position": { "x": 50, "y": 250 },
+        "data": { "label": "Topic", "value": "React useState Hook", "inputType": "text", "width": 200, "height": 168 }
+      },
+      {
+        "id": "if_1",
+        "type": "if",
+        "position": { "x": 300, "y": 250 },
+        "data": {
+          "label": "Topic Classification",
+          "conditionType": "llm",
+          "condition": "Is the input topic technical content (programming, IT, science, engineering, mathematics, etc.)? Please answer only 'true' for technical content, or 'false' for non-technical content.",
+          "variable": "", "operator": "==", "value": "",
+          "model": "gpt-5-nano", "temperature": 1.0,
+          "width": 240, "height": 180
+        }
+      },
+      {
+        "id": "llm_technical",
+        "type": "llm",
+        "position": { "x": 600, "y": 100 },
+        "data": {
+          "label": "技術的な説明",
+          "systemPrompt": "あなたは経験豊富なソフトウェアエンジニアです。技術的なトピックについて、初心者にも理解しやすいよう丁寧で具体的な解説を提供してください。コード例や実用的な使用例も交えて説明してください。",
+          "prompt": "以下のトピックについて詳しく解説してください。",
+          "temperature": 1.0,
+          "model": "gpt-5-nano",
+          "width": 320, "height": 240
+        }
+      },
+      {
+        "id": "llm_creative",
+        "type": "llm",
+        "position": { "x": 600, "y": 400 },
+        "data": {
+          "label": "創造的なアイデア",
+          "systemPrompt": "あなたは創造性豊かな作家です。与えられたトピックから想像力を膨らませて、面白い物語、詩、または創造的なアイデアを生み出してください。読み手を楽しませる内容にしてください。",
+          "prompt": "以下のトピックについて、面白い物語や詩を創作してください。",
+          "temperature": 1.0,
+          "model": "gpt-5-nano",
+          "width": 320, "height": 240
+        }
+      },
+      {
+        "id": "output_1",
+        "type": "output",
+        "position": { "x": 980, "y": 250 },
+        "data": { "label": "Generated Result", "format": "text", "title": "Generated Result", "result": "", "width": 220, "height": 180 }
       }
-    },
-    {
-      "id": "if_1",
-      "type": "if",
-      "position": { "x": 300, "y": 250 },
-      "size": { "width": 240, "height": 180 },
-      "data": {
-        "label": "Topic Classification",
-        "conditionType": "llm",
-        "condition": "Is the input topic technical content (programming, IT, science, engineering, mathematics, etc.)? Please answer only 'true' for technical content, or 'false' for non-technical content.",
-        "variable": "", "operator": "==", "value": "",
-        "model": "gpt-5-nano", "temperature": 1.0
-      }
-    },
-    {
-      "id": "llm_technical",
-      "type": "llm",
-      "position": { "x": 600, "y": 100 },
-      "size": { "width": 320, "height": 240 },
-      "data": {
-        "label": "技術的な説明",
-        "systemPrompt": "あなたは経験豊富なソフトウェアエンジニアです。技術的なトピックについて、初心者にも理解しやすいよう丁寧で具体的な解説を提供してください。コード例や実用的な使用例も交えて説明してください。",
-        "prompt": "以下のトピックについて詳しく解説してください。",
-        "temperature": 1.0,
-        "model": "gpt-5-nano"
-      }
-    },
-    {
-      "id": "llm_creative",
-      "type": "llm",
-      "position": { "x": 600, "y": 400 },
-      "size": { "width": 320, "height": 240 },
-      "data": {
-        "label": "創造的なアイデア",
-        "systemPrompt": "あなたは創造性豊かな作家です。与えられたトピックから想像力を膨らませて、面白い物語、詩、または創造的なアイデアを生み出してください。読み手を楽しませる内容にしてください。",
-        "prompt": "以下のトピックについて、面白い物語や詩を創作してください。",
-        "temperature": 1.0,
-        "model": "gpt-5-nano"
-      }
-    },
-    {
-      "id": "output_1",
-      "type": "output",
-      "position": { "x": 980, "y": 250 },
-      "size": { "width": 220, "height": 180 },
-      "data": {
-        "label": "Generated Result",
-        "format": "text", "title": "Generated Result", "result": ""
-      }
-    }
-  ],
-  "connections": [
-    {
-      "id": "conn_1",
-      "from": { "nodeId": "input_topic", "portIndex": 0 },
-      "to": { "nodeId": "if_1", "portIndex": 0 }
-    },
-    {
-      "id": "conn_2",
-      "from": { "nodeId": "if_1", "portIndex": 0 },
-      "to": { "nodeId": "llm_technical", "portIndex": 0 }
-    },
-    {
-      "id": "conn_3",
-      "from": { "nodeId": "if_1", "portIndex": 1 },
-      "to": { "nodeId": "llm_creative", "portIndex": 0 }
-    },
-    {
-      "id": "conn_4",
-      "from": { "nodeId": "llm_technical", "portIndex": 0 },
-      "to": { "nodeId": "output_1", "portIndex": 0 }
-    },
-    {
-      "id": "conn_5",
-      "from": { "nodeId": "llm_creative", "portIndex": 0 },
-      "to": { "nodeId": "output_1", "portIndex": 0 }
-    }
-  ],
+    ],
+    "edges": [
+      { "id": "conn_1", "source": "input_topic", "target": "if_1", "sourceHandle": "0", "targetHandle": "0" },
+      { "id": "conn_2", "source": "if_1", "target": "llm_technical", "sourceHandle": "true", "targetHandle": "0" },
+      { "id": "conn_3", "source": "if_1", "target": "llm_creative", "sourceHandle": "false", "targetHandle": "0" },
+      { "id": "conn_4", "source": "llm_technical", "target": "output_1", "sourceHandle": "0", "targetHandle": "0" },
+      { "id": "conn_5", "source": "llm_creative", "target": "output_1", "sourceHandle": "0", "targetHandle": "0" }
+    ],
+    "viewport": { "x": 0, "y": 0, "zoom": 1 }
+  },
   "lastModified": "2024-07-29T00:00:00.000Z"
 }

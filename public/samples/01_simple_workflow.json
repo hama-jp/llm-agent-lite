@@ -1,55 +1,44 @@
 {
   "id": "sample-01-simple",
   "name": "01 - Simple Input/Output",
-  "nodes": [
-    {
-      "id": "input_1",
-      "type": "input",
-      "position": {
-        "x": 100,
-        "y": 150
+  "flow": {
+    "nodes": [
+      {
+        "id": "input_1",
+        "type": "input",
+        "position": { "x": 100, "y": 150 },
+        "data": {
+          "label": "Input",
+          "value": "Hello, World!",
+          "inputType": "text",
+          "width": 180,
+          "height": 168
+        }
       },
-      "size": {
-        "width": 180,
-        "height": 168
-      },
-      "data": {
-        "label": "Input",
-        "value": "Hello, World!",
-        "inputType": "text"
+      {
+        "id": "output_1",
+        "type": "output",
+        "position": { "x": 400, "y": 150 },
+        "data": {
+          "label": "Output",
+          "format": "text",
+          "title": "Result",
+          "result": "",
+          "width": 180,
+          "height": 168
+        }
       }
-    },
-    {
-      "id": "output_1",
-      "type": "output",
-      "position": {
-        "x": 400,
-        "y": 150
-      },
-      "size": {
-        "width": 180,
-        "height": 168
-      },
-      "data": {
-        "label": "Output",
-        "format": "text",
-        "title": "Result",
-        "result": ""
+    ],
+    "edges": [
+      {
+        "id": "conn_1",
+        "source": "input_1",
+        "target": "output_1",
+        "sourceHandle": "0",
+        "targetHandle": "0"
       }
-    }
-  ],
-  "connections": [
-    {
-      "id": "conn_1",
-      "from": {
-        "nodeId": "input_1",
-        "portIndex": 0
-      },
-      "to": {
-        "nodeId": "output_1",
-        "portIndex": 0
-      }
-    }
-  ],
+    ],
+    "viewport": { "x": 0, "y": 0, "zoom": 1 }
+  },
   "lastModified": "2024-07-29T00:00:00.000Z"
 }
