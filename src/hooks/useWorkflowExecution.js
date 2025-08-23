@@ -158,8 +158,62 @@ const useWorkflowExecution = ({
           alert(`エラーが発生しました: ${result.value.error?.message}`);
           setExecutionResult({ success: false, error: result.value.error?.message });
         }
-        processExecutionCompletion();
-        handleResetExecution();
+        // Process execution completion directly to avoid circular dependency
+        const finalContext = nodeExecutionService.executionContext;
+        const executionLog = nodeExecutionService.getExecutionLog();
+        let newSelectedNode = null;
+
+        setNodes(prevNodes => {
+          const newNodes = prevNodes.map(node => {
+            // Output ノードの結果を更新
+            if (node.type === 'output' && finalContext[node.id] !== undefined) {
+              const updatedNode = { ...node, data: { ...node.data, result: String(finalContext[node.id]) } };
+              if (selectedNode && selectedNode.id === node.id) newSelectedNode = updatedNode;
+              return updatedNode;
+            }
+            
+            // LLM ノードのプロンプト情報を更新
+            if (node.type === 'llm') {
+              // 実行ログからLLMノードのプロンプト情報を取得
+              const llmLogEntry = executionLog.find(log => 
+                log.nodeId === node.id && 
+                log.message.includes('LLMに送信するプロンプト') && 
+                log.data && log.data.prompt
+              );
+              
+              if (llmLogEntry) {
+                const updatedNode = { 
+                  ...node, 
+                  data: { 
+                    ...node.data, 
+                    currentPrompt: llmLogEntry.data.prompt 
+                  } 
+                };
+                if (selectedNode && selectedNode.id === node.id) newSelectedNode = updatedNode;
+                return updatedNode;
+              }
+            }
+            
+            return node;
+          });
+          return newNodes;
+        });
+
+        if (newSelectedNode) onSelectedNodeChange(newSelectedNode);
+        setDebugLog(executionLog);
+
+        // Reset execution directly to avoid circular dependency
+        if (executor) executor.stop();
+        setExecutor(null);
+        setExecutionState({ running: false, currentNodeId: null, executedNodeIds: new Set() });
+        setExecutionResult(null);
+        
+        // Clear output node results
+        setNodes(prev => prev.map(node => 
+          node.type === 'output' 
+            ? { ...node, data: { ...node.data, result: '' } }
+            : node
+        ));
       } else {
         setExecutionState(prev => ({ ...prev, currentNodeId: result.value.currentNodeId, executedNodeIds: new Set(prev.executedNodeIds).add(result.value.currentNodeId) }));
       }
@@ -173,7 +227,7 @@ const useWorkflowExecution = ({
       setExecutionResult({ success: false, error: error.message });
       setDebugLog([]);
     }
-  }, [executor, nodes, connections, preprocessNodesForExecution, setNodes, setExecutor, setExecutionState, setExecutionResult, processExecutionCompletion, setDebugLog]);
+  }, [executor, nodes, connections, preprocessNodesForExecution, setNodes, setExecutor, setExecutionState, setExecutionResult, selectedNode, onSelectedNodeChange, setDebugLog]);
 
   const handleResetExecution = useCallback(() => {
     if (executor) executor.stop();
