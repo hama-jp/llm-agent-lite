@@ -230,8 +230,9 @@ class NodeExecutionService {
 
     // ノード定義から実行メソッドを取得
     const nodeDefinition = this.nodeTypes?.[node.type];
-    if (nodeDefinition && typeof nodeDefinition.execute === 'function') {
+    if (nodeDefinition && typeof nodeDefinition.execute === 'function' && node.type !== 'if' && node.type !== 'while') {
       // 新しい方式：ノード定義に含まれた実行メソッドを使用
+      // 注意: ifとwhileノードは従来システムを使用（複雑な制御フロー対応）
       const context = {
         variables: this.variables,
         addLog: this.addLog.bind(this)
