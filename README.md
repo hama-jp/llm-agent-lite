@@ -68,7 +68,7 @@ The output files will be in the `dist` folder. You can deploy this folder to any
 
 ## 📄 License (ライセンス)
 
-This project is licensed under the MIT License.
+This project is licensed under the Apache 2.0 License.
 
 ## ❤️ Support (サポート)
 
