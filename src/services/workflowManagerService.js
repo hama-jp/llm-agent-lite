@@ -8,13 +8,13 @@ async function loadSampleWorkflow(filename) {
   try {
     const response = await fetch(`/samples/${filename}`);
     if (!response.ok) {
-      console.warn(`サンプルファイル ${filename} の読み込みに失敗しました`);
+      console.warn(`Failed to load sample file ${filename}`);
       return null;
     }
     const workflow = await response.json();
     return workflow;
   } catch (error) {
-    console.warn(`サンプルファイル ${filename} の解析に失敗しました:`, error);
+    console.warn(`Failed to parse sample file ${filename}:`, error);
     return null;
   }
 }
@@ -29,7 +29,7 @@ class WorkflowManagerService {
     
     const workflows = this.getWorkflows();
     if (Object.keys(workflows).length === 0) {
-      console.log('初期ワークフロー設定中...');
+      console.log('Setting up initial workflows...');
       await this._loadInitialSamples();
     }
     this._initialized = true;
@@ -55,20 +55,20 @@ class WorkflowManagerService {
         };
         this.saveWorkflow(workflowWithNewId);
         loadedWorkflows.push(workflowWithNewId);
-        console.log(`サンプルワークフロー「${workflow.name}」をインポートしました`);
+        console.log(`Imported sample workflow "${workflow.name}"`);
       }
     }
 
-    // 最初にロードされたワークフローを現在のワークフローに設定
+    // Set the first loaded workflow as the current workflow
     if (loadedWorkflows.length > 0) {
       this.setCurrentWorkflowId(loadedWorkflows[0].id);
-      console.log(`初期ワークフローとして「${loadedWorkflows[0].name}」を設定しました`);
+      console.log(`Set "${loadedWorkflows[0].name}" as initial workflow`);
     } else {
-      // サンプルファイルが読み込めない場合はデフォルトワークフローを作成
+      // Create a default workflow if sample files couldn't be loaded
       const newWorkflow = this.createNewWorkflow();
       this.saveWorkflow(newWorkflow);
       this.setCurrentWorkflowId(newWorkflow.id);
-      console.log('デフォルトワークフローを作成しました');
+      console.log('Created default workflow');
     }
   }
 
@@ -119,7 +119,7 @@ class WorkflowManagerService {
     StorageService.setCurrentWorkflowId(id);
   }
 
-  createNewWorkflow(name = '新規フロー') {
+  createNewWorkflow(name = 'New Workflow') {
     const newId = generateId();
     return {
       id: newId,

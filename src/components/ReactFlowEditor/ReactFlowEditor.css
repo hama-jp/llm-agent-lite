@@ -1,0 +1,46 @@
+/* ReactFlowのデフォルトノードスタイルを無効化して重複背景を修正 */
+.react-flow__node-input,
+.react-flow__node-output,
+.react-flow__node-default {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+/* 選択時とフォーカス時の輪郭を完全に削除 */
+.react-flow {
+  --xy-node-boxshadow-selected-default: none;
+  --xy-node-border-default: none;
+}
+
+.react-flow__node.selected,
+.react-flow__node:focus {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* ハンドルの接続状態フィードバック */
+.react-flow__handle.connecting {
+  background: #ff6b35 !important;
+  transform: scale(1.2);
+}
+
+.react-flow__handle.valid {
+  background: #22c55e !important;
+}
+
+.react-flow__handle:hover {
+  transform: scale(1.1);
+}
+
+/* エッジの矢印マーカー */
+.react-flow__edge path {
+  stroke: #b1b1b7;
+  stroke-width: 2;
+}
+
+.react-flow__edge.selected path {
+  stroke: #ff6b35;
+  stroke-width: 3;
+}

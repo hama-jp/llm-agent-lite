@@ -4,10 +4,8 @@ import useReactFlowStore from '../../store/reactFlowStore';
 import { nodesByCategory } from '../nodes/index.js';
 
 const ContextMenu = () => {
-  const { contextMenu, setContextMenu } = useUIStore(state => ({
-    contextMenu: state.contextMenu,
-    setContextMenu: state.setContextMenu,
-  }));
+  const contextMenu = useUIStore(state => state.contextMenu);
+  const setContextMenu = useUIStore(state => state.setContextMenu);
   const addNode = useReactFlowStore(state => state.addNode);
 
   if (!contextMenu) {
@@ -24,14 +22,11 @@ const ContextMenu = () => {
     const newNode = {
       id: `${nodeType}_${Date.now()}`,
       type: nodeType, // This needs to match the key in nodeTypes map
-      position: { x: contextMenu.x, y: contextMenu.y },
+      position: { x: contextMenu.flowX || contextMenu.x, y: contextMenu.flowY || contextMenu.y },
       data: {
         label: nodeDefinition.name,
         icon: nodeDefinition.icon,
         ...nodeDefinition.defaultData,
-        // Ensure inputs/outputs are defined for the CustomNode wrapper
-        inputs: nodeDefinition.inputs.map(name => ({ name })),
-        outputs: nodeDefinition.outputs.map(name => ({ name })),
       },
     };
     addNode(newNode);
@@ -42,8 +37,8 @@ const ContextMenu = () => {
     <div
       style={{
         position: 'absolute',
-        left: contextMenu.x,
-        top: contextMenu.y,
+        left: contextMenu.screenX || contextMenu.x,
+        top: contextMenu.screenY || contextMenu.y,
         zIndex: 1000,
       }}
       className="bg-white rounded-lg shadow-lg border py-2 min-w-48"

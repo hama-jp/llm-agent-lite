@@ -3,11 +3,16 @@ import { ReactFlowProvider } from '@xyflow/react';
 import ReactFlowEditor from './ReactFlowEditor/index.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
 
-const WorkflowView = () => {
+const WorkflowView = ({ selectedNode, onSelectedNodeChange, editingNode, onEditingNodeChange }) => {
   return (
     <ErrorBoundary>
       <ReactFlowProvider>
-        <ReactFlowEditor />
+        <ReactFlowEditor 
+          selectedNode={selectedNode}
+          onSelectedNodeChange={onSelectedNodeChange}
+          editingNode={editingNode}
+          onEditingNodeChange={onEditingNodeChange}
+        />
       </ReactFlowProvider>
     </ErrorBoundary>
   );

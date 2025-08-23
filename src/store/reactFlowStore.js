@@ -12,23 +12,33 @@ const useReactFlowStore = create(
     (set, get) => ({
       nodes: [],
       edges: [],
-      viewport: null,
+      viewport: { x: 0, y: 0, zoom: 1 },
 
       onNodesChange: (changes) => {
+        const currentNodes = get().nodes;
+        const nodes = Array.isArray(currentNodes) ? currentNodes : [];
         set({
-          nodes: applyNodeChanges(changes, get().nodes),
+          nodes: applyNodeChanges(changes, nodes),
         });
       },
 
       onEdgesChange: (changes) => {
+        const currentEdges = get().edges;
+        const edges = Array.isArray(currentEdges) ? currentEdges : [];
         set({
-          edges: applyEdgeChanges(changes, get().edges),
+          edges: applyEdgeChanges(changes, edges),
         });
       },
 
       onConnect: (connection) => {
+        const currentEdges = get().edges;
+        const edges = Array.isArray(currentEdges) ? currentEdges : [];
         set({
-          edges: addEdge({ ...connection, type: 'custom' }, get().edges),
+          edges: addEdge({ 
+            ...connection, 
+            type: 'custom',
+            markerEnd: { type: 'arrow' }
+          }, edges),
         });
       },
 
@@ -41,7 +51,9 @@ const useReactFlowStore = create(
       },
 
       addNode: (newNode) => {
-        set({ nodes: [...get().nodes, newNode] });
+        const currentNodes = get().nodes;
+        const nodes = Array.isArray(currentNodes) ? currentNodes : [];
+        set({ nodes: [...nodes, newNode] });
       },
 
       setViewport: (viewport) => {
@@ -53,9 +65,16 @@ const useReactFlowStore = create(
         if (workflow && workflow.flow) {
           const { nodes, edges, viewport } = workflow.flow;
           set({
-            nodes: nodes || [],
-            edges: edges || [],
-            viewport: viewport || null,
+            nodes: Array.isArray(nodes) ? nodes : [],
+            edges: Array.isArray(edges) ? edges : [],
+            viewport: viewport || { x: 0, y: 0, zoom: 1 },
+          });
+        } else {
+          // ワークフローが見つからない場合は空の状態にリセット
+          set({
+            nodes: [],
+            edges: [],
+            viewport: { x: 0, y: 0, zoom: 1 },
           });
         }
       },
