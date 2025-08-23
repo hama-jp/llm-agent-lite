@@ -7,7 +7,7 @@ import { createNodeDefinition } from './types.js';
  * @param {Object} context - 実行コンテキスト
  * @returns {Promise<string>} フォーマットされた出力値
  */
-async function executeOutputNode(node, inputs, context) {
+async function executeOutputNode(node, inputs, _context) {
   const format = node.data.format || 'text';
   // Get the first available input value, or fallback to empty string
   const inputValue = Object.values(inputs)[0] || '';

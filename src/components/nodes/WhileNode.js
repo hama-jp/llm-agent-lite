@@ -7,7 +7,7 @@ import { createNodeDefinition } from './types.js';
  * @param {Object} context - 実行コンテキスト
  * @returns {Promise<string>} 処理結果
  */
-async function executeWhileNode(node, inputs, context) {
+async function executeWhileNode(_node, _inputs, _context) {
   // 注意：While ループは複雑な制御フローのため、
   // nodeExecutionService.js の executeWhileNode を使用します
   // この実行メソッドは placeholder として存在します
