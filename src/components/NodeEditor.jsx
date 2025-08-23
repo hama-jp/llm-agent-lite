@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Alert, AlertDescription } from '@/components/ui/alert.jsx'
 
-import nodeExecutionService from '../services/nodeExecutionService.js'
 import llmService from '../services/llmService.js'
 import workflowManagerService from '../services/workflowManagerService.js'
 import WorkflowHistoryView from './WorkflowHistoryView.jsx'
@@ -37,7 +36,6 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
   const [showHistoryView, setShowHistoryView] = useState(false)
 
   const canvasRef = useRef(null)
-  const nodeRefs = useRef(new Map())
   const portRefs = useRef(new Map())
   const renameInputRef = useRef(null);
 
@@ -64,9 +62,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
     handlePortMouseDown,
     handleMouseMove,
     handleMouseUp,
-    handlePortMouseUp,
-    updateNodePosition,
-    updateNodeSize
+    handlePortMouseUp
   } = useNodeInteraction({
     nodes,
     connections,
