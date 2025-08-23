@@ -166,9 +166,14 @@ const useWorkflowExecution = ({
     } catch (error) {
       console.error("Step forward failed:", error);
       setExecutionResult({ success: false, error: error.message });
-      handleResetExecution();
+      // Reset execution directly to avoid circular dependency
+      if (executor) executor.stop();
+      setExecutor(null);
+      setExecutionState({ running: false, currentNodeId: null, executedNodeIds: new Set() });
+      setExecutionResult({ success: false, error: error.message });
+      setDebugLog([]);
     }
-  }, [executor, nodes, connections, preprocessNodesForExecution, setNodes, setExecutor, setExecutionState, setExecutionResult, processExecutionCompletion, handleResetExecution]);
+  }, [executor, nodes, connections, preprocessNodesForExecution, setNodes, setExecutor, setExecutionState, setExecutionResult, processExecutionCompletion, setDebugLog]);
 
   const handleResetExecution = useCallback(() => {
     if (executor) executor.stop();
