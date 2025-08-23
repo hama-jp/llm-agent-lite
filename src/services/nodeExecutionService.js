@@ -1,5 +1,6 @@
 import llmService from './llmService.js'
 import logService from './logService.js'
+import { nodeTypes } from '../components/nodes/index.js'
 
 class NodeExecutionService {
   constructor() {
@@ -10,6 +11,7 @@ class NodeExecutionService {
     this.executionLog = []
     this.debugMode = false
     this.currentRunId = null
+    this.nodeTypes = nodeTypes
   }
 
   setDebugMode(enabled) {
@@ -224,34 +226,30 @@ class NodeExecutionService {
   async executeNode(node, nodes, connections) {
     const inputs = this.getNodeInputs(node, connections, nodes)
     let output
-    switch (node.type) {
-      case 'input':
-        output = await this.executeInputNode(node, inputs)
-        break
-      case 'llm':
-        output = await this.executeLLMNode(node, inputs)
-        break
-      case 'if':
-        output = await this.executeIfNode(node, inputs)
-        break
-      case 'while':
-        output = await this.executeWhileNode(node, inputs, nodes, connections)
-        break
-      case 'output':
-        output = await this.executeOutputNode(node, inputs)
-        break
-      case 'text_combiner':
-        output = await this.executeTextCombinerNode(node, inputs)
-        break
-      case 'variable_set':
-        output = await this.executeVariableSetNode(node, inputs)
-        break
-      case 'variable_get':
-        output = await this.executeVariableGetNode(node, inputs)
-        break
-      default:
-        throw new Error(`未知のノードタイプ: ${node.type}`)
+
+    // ノード定義から実行メソッドを取得
+    const nodeDefinition = this.nodeTypes?.[node.type];
+    if (nodeDefinition && typeof nodeDefinition.execute === 'function') {
+      // 新しい方式：ノード定義に含まれた実行メソッドを使用
+      const context = {
+        variables: this.variables,
+        addLog: this.addLog.bind(this)
+      };
+      output = await nodeDefinition.execute(node, inputs, context);
+    } else {
+      // 従来の方式：fallback for compatibility
+      switch (node.type) {
+        case 'if':
+          output = await this.executeIfNode(node, inputs)
+          break
+        case 'while':
+          output = await this.executeWhileNode(node, inputs, nodes, connections)
+          break
+        default:
+          throw new Error(`未知のノードタイプ: ${node.type}`)
+      }
     }
+    
     this.executionContext[node.id] = output
     return output
   }
@@ -564,20 +562,6 @@ class NodeExecutionService {
     return node.data.useInput ? value : value
   }
 
-  async executeVariableGetNode(node) {
-    const variableName = node.data.variableName || ''
-    if (!variableName) {
-      throw new Error('変数名が設定されていません')
-    }
-
-    const value = this.variables[variableName]
-    if (value === undefined) {
-      throw new Error(`変数 '${variableName}' が見つかりません`)
-    }
-
-    this.addLog('info', `変数 '${variableName}' の値を取得: ${value}`, node.id, { variableName, value })
-    return value
-  }
 }
 
 export default new NodeExecutionService()
