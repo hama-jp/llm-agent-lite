@@ -1,9 +1,11 @@
+import { useEffect } from 'react'
 import Layout from './components/Layout.jsx'
 import ChatView from './components/ChatView.jsx'
 import WorkflowView from './components/WorkflowView.jsx'
 import DataView from './components/DataView.jsx'
 import SettingsView from './components/SettingsView.jsx'
 import { useStore, selectCurrentView, selectSelectedNode, selectEditingNode, useUIActions } from './store/index.js'
+import workflowManagerService from './services/workflowManagerService.js'
 import './App.css'
 
 function App() {
@@ -12,6 +14,13 @@ function App() {
   const selectedNode = useStore(selectSelectedNode)
   const editingNode = useStore(selectEditingNode)
   const { setCurrentView, setSelectedNode, setEditingNode } = useUIActions()
+
+  // アプリケーション初期化時にサンプルワークフローをロード
+  useEffect(() => {
+    workflowManagerService.initialize().catch(error => {
+      console.error('ワークフローマネージャーの初期化に失敗しました:', error);
+    });
+  }, [])
 
   const renderCurrentView = () => {
     switch (currentView) {

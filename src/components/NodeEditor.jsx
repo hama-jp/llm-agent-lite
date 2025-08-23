@@ -87,9 +87,12 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
 
   // Initial load
   useEffect(() => {
-    const workflowId = workflowManagerService.getCurrentWorkflowId();
-    loadWorkflow(workflowId);
-    setWorkflows(Object.values(workflowManagerService.getWorkflows()));
+    // サンプルロード完了を少し待ってから初期化
+    setTimeout(() => {
+      const workflowId = workflowManagerService.getCurrentWorkflowId();
+      loadWorkflow(workflowId);
+      setWorkflows(Object.values(workflowManagerService.getWorkflows()));
+    }, 100);
   }, []);
 
   const debouncedSave = useMemo(() => debounce((wf) => {
@@ -118,6 +121,44 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
       setNodes(wf.nodes || []);
       setConnections(wf.connections || []);
       workflowManagerService.setCurrentWorkflowId(id);
+      
+      // すべてのノードを2周選択してリフレッシュ
+      if (wf.nodes && wf.nodes.length > 0) {
+        setTimeout(() => {
+          const nodeIds = wf.nodes.map(node => node.id);
+          let currentIndex = 0;
+          let currentRound = 0;
+          const totalRounds = 2; // 2周する
+          
+          const selectNextNode = () => {
+            if (currentRound < totalRounds) {
+              if (currentIndex < nodeIds.length) {
+                const nodeId = nodeIds[currentIndex];
+                setSelectedNode(nodeId);
+                
+                // ノード要素にも軽微なDOM操作でリフレッシュを促す
+                const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
+                if (nodeElement) {
+                  nodeElement.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                }
+                
+                currentIndex++;
+                setTimeout(selectNextNode, 30); // 30ms間隔で次のノードを選択
+              } else {
+                // 1周完了、次の周に移る
+                currentIndex = 0;
+                currentRound++;
+                setTimeout(selectNextNode, 30);
+              }
+            } else {
+              // 2周完了、選択を解除
+              setSelectedNode(null);
+            }
+          };
+          
+          selectNextNode();
+        }, 150); // DOM更新完了を待つ
+      }
     }
   };
 
@@ -240,6 +281,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
     
     return () => clearTimeout(timer);
   }, [nodes, connectionPathsCalculation, draggedNode]);
+
 
   React.useEffect(() => {
     const handleKeyDown = (e) => {
@@ -495,7 +537,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2"><span className="text-gray-500 text-xs">{new Date(log.timestamp).toLocaleTimeString()}</span><span className={`font-medium text-xs ${log.level === 'error' ? 'text-red-700' : log.level === 'success' ? 'text-green-700' : log.level === 'info' ? 'text-blue-700' : 'text-gray-700'}`}>[{log.level.toUpperCase()}]</span>{log.nodeId && (<span className="text-purple-600 text-xs bg-purple-100 px-1 rounded">{log.nodeId}</span>)}</div>
                             <div className="text-gray-800 mt-1">{log.message}</div>
-                            {log.data && (<details className="mt-1"><summary className="text-gray-600 cursor-pointer text-xs">詳細データ</summary><pre className="text-xs text-gray-600 mt-1 whitespace-pre-wrap bg-white p-1 rounded border">{JSON.stringify(log.data, null, 2)}</pre></details>)}
+                            {log.data && (<details className="mt-1" open><summary className="text-gray-600 cursor-pointer text-xs">詳細データ</summary><pre className="text-xs text-gray-600 mt-1 whitespace-pre-wrap bg-white p-1 rounded border">{JSON.stringify(log.data, null, 2)}</pre></details>)}
                           </div>
                         </div>
                       </div>

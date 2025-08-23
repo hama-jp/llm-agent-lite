@@ -9,7 +9,7 @@
       "size": { "width": 220, "height": 180 },
       "data": {
         "label": "プロンプトテンプレート",
-        "value": "以下のテキストを要約してください。\n\nテキスト： {{input}}",
+        "value": "以下のテキストを要約してください。",
         "inputType": "text"
       }
     },
@@ -42,7 +42,8 @@
       "size": { "width": 320, "height": 240 },
       "data": {
         "label": "LLMによる要約",
-        "prompt": "{{input}}",
+        "systemPrompt": "あなたは優秀な要約エキスパートです。与えられたテキストを簡潔で分かりやすく要約してください。重要なポイントを漏らすことなく、読みやすい形で情報を整理してください。",
+        "prompt": "以下のテキストを要約してください。",
         "temperature": 1.0,
         "model": "gpt-5-nano"
       }

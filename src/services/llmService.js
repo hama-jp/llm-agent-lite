@@ -14,7 +14,7 @@ class LLMService {
       baseUrl: '',
       model: 'gpt-3.5-turbo',
       temperature: 0.7,
-      maxTokens: 2048
+      maxTokens: 50000
     })
   }
 
@@ -127,6 +127,15 @@ class LLMService {
       baseUrl,
       currentSettings
     });
+    
+    // 特に重要: max_completion_tokens の実際の値を確認
+    console.warn('Token Settings Check:', {
+      modelName: model,
+      bodyMaxTokens: body.max_tokens,
+      bodyMaxCompletionTokens: body.max_completion_tokens,
+      originalMaxTokens: maxTokens,
+      isGpt5Model: model && model.startsWith('gpt-5')
+    });
 
     let response;
     try {
@@ -152,12 +161,43 @@ class LLMService {
 
     const data = await response.json()
 
+    // デバッグ用: APIレスポンスの内容をログ出力
+    console.log('LLM Response:', {
+      provider,
+      model,
+      data,
+      choices: data.choices,
+      firstChoice: data.choices?.[0],
+      message: data.choices?.[0]?.message,
+      content: data.choices?.[0]?.message?.content
+    });
+
+
     // レスポンス形式の正規化
     switch (provider) {
       case 'openai':
       case 'local':
       case 'custom':
-        return data.choices?.[0]?.message?.content || 'レスポンスが空です'
+        const result = data.choices?.[0]?.message?.content || 'レスポンスが空です';
+        
+        // デバッグ: APIレスポンス詳細を表示（一時的）
+        if (result === 'レスポンスが空です') {
+          console.warn('API Response Analysis:', {
+            model: model,
+            responseStatus: response.status,
+            responseStatusText: response.statusText,
+            dataKeys: Object.keys(data),
+            hasChoices: !!data.choices,
+            choices: data.choices,
+            choicesLength: data.choices?.length,
+            firstChoice: data.choices?.[0],
+            messageStructure: data.choices?.[0] ? Object.keys(data.choices[0]) : 'No first choice',
+            actualContent: data.choices?.[0]?.message?.content,
+            errorField: data.error
+          });
+        }
+        
+        return result;
 
       case 'anthropic':
         return data.content?.[0]?.text || 'レスポンスが空です'
@@ -199,8 +239,8 @@ class LLMService {
       errors.push('温度は0.0から2.0の間で設定してください')
     }
 
-    if (settings.maxTokens < 1 || settings.maxTokens > 8192) {
-      errors.push('最大トークン数は1から8192の間で設定してください')
+    if (settings.maxTokens < 1 || settings.maxTokens > 128000) {
+      errors.push('最大トークン数は1から128000の間で設定してください')
     }
 
     return errors
