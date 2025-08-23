@@ -4,10 +4,9 @@ import { createNodeDefinition } from './types.js';
  * 出力ノードの実行処理
  * @param {Object} node - ノードオブジェクト
  * @param {Object} inputs - 入力データ
- * @param {Object} context - 実行コンテキスト
  * @returns {Promise<string>} フォーマットされた出力値
  */
-async function executeOutputNode(node, inputs, _context) {
+async function executeOutputNode(node, inputs) {
   const format = node.data.format || 'text';
   // Get the first available input value, or fallback to empty string
   const inputValue = Object.values(inputs)[0] || '';

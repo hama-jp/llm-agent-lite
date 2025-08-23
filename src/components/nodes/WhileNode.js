@@ -1,13 +1,11 @@
 import { createNodeDefinition } from './types.js';
 
 /**
- * While繰り返しノードの実行処理
- * @param {Object} node - ノードオブジェクト
- * @param {Object} inputs - 入力データ
- * @param {Object} context - 実行コンテキスト
+ * While繰り返しノードの実行処理 (プレースホルダー)
+ * 実際の処理は nodeExecutionService.js で実装されています
  * @returns {Promise<string>} 処理結果
  */
-async function executeWhileNode(_node, _inputs, _context) {
+async function executeWhileNode() {
   // 注意：While ループは複雑な制御フローのため、
   // nodeExecutionService.js の executeWhileNode を使用します
   // この実行メソッドは placeholder として存在します
