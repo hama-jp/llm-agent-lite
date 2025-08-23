@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Download, Upload, Trash2, FileText, MessageSquare, Workflow, History } from 'lucide-react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
@@ -12,11 +12,7 @@ const DataView = () => {
   const [_chatHistory, setChatHistory] = useState([])
   const [workflowData, setWorkflowData] = useState([])
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  const loadData = () => {
+  const loadData = useCallback(() => {
     // チャット履歴を読み込み
     try {
       const history = StorageService.getChatHistory([])
@@ -30,7 +26,11 @@ const DataView = () => {
     // ワークフローデータを読み込み
     const workflows = Object.values(workflowManagerService.getWorkflows());
     setWorkflowData(workflows);
-  }
+  }, [])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const groupChatMessages = (messages) => {
     const sessions = []

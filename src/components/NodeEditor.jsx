@@ -104,7 +104,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
       const wfToSave = { ...currentWorkflow, nodes, connections };
       debouncedSave(wfToSave);
     }
-  }, [nodes, connections, currentWorkflow?.name, debouncedSave]);
+  }, [nodes, connections, currentWorkflow, debouncedSave]);
 
   // Debug: connections配列の変更を監視
   useEffect(() => {
@@ -157,7 +157,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
     } else {
       onEditingNodeChange(null);
     }
-  }, [selectedNode?.id, onEditingNodeChange]);
+  }, [selectedNode, onEditingNodeChange]);
 
   // editingNodeの変更をnodesに反映
   useEffect(() => {
@@ -166,7 +166,7 @@ const NodeEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEditing
         node.id === editingNode.id ? editingNode : node
       ));
     }
-  }, [editingNode, selectedNode?.id]);
+  }, [editingNode, selectedNode]);
 
   const connectionPathsCalculation = useCallback(() => {
     return connections.map((conn) => {

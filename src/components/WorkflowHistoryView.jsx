@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { Clock, CheckCircle, XCircle, StopCircle, ChevronDown, ChevronRight } from 'lucide-react'
 import logService from '../services/logService.js'
@@ -24,11 +24,7 @@ export default function WorkflowHistoryView({ workflowId = 'default' }) {
   const [expandedRun, setExpandedRun] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadWorkflowRuns()
-  }, [workflowId])
-
-  const loadWorkflowRuns = async () => {
+  const loadWorkflowRuns = useCallback(async () => {
     try {
       setLoading(true)
       const workflowRuns = await logService.getRunsForWorkflow(workflowId)
@@ -38,7 +34,11 @@ export default function WorkflowHistoryView({ workflowId = 'default' }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [workflowId])
+
+  useEffect(() => {
+    loadWorkflowRuns()
+  }, [loadWorkflowRuns])
 
   const handleRunClick = async (run) => {
     if (selectedRun?.id === run.id) {
