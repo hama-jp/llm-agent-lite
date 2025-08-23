@@ -1,4 +1,4 @@
-# 🌊 flomoji
+# 🌊 仮称: flomoji
 
 **A lightweight LLM agent development tool that runs entirely in your browser**
 
