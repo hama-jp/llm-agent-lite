@@ -30,7 +30,7 @@ export default function WorkflowHistoryView({ workflowId = 'default' }) {
       const workflowRuns = await logService.getRunsForWorkflow(workflowId)
       setRuns(workflowRuns)
     } catch (error) {
-      console.error('実行履歴の取得に失敗しました:', error)
+      console.error('Failed to fetch execution history:', error)
     } finally {
       setLoading(false)
     }
@@ -54,21 +54,21 @@ export default function WorkflowHistoryView({ workflowId = 'default' }) {
       setSelectedRunLogs(logs)
       setExpandedRun(run.id)
     } catch (error) {
-      console.error('実行ログの取得に失敗しました:', error)
+      console.error('Failed to fetch execution logs:', error)
     }
   }
 
   const formatDuration = (startedAt, endedAt) => {
-    if (!endedAt) return '実行中...'
+    if (!endedAt) return 'Running...'
     const start = new Date(startedAt)
     const end = new Date(endedAt)
     const duration = Math.round((end - start) / 1000)
-    return `${duration}秒`
+    return `${duration}s`
   }
 
   const formatInputData = (inputData) => {
     if (!inputData || Object.keys(inputData).length === 0) {
-      return '入力データなし'
+      return 'No input data'
     }
     return Object.entries(inputData)
       .map(([key, value]) => `${key}: ${String(value).substring(0, 50)}${String(value).length > 50 ? '...' : ''}`)
@@ -78,7 +78,7 @@ export default function WorkflowHistoryView({ workflowId = 'default' }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-gray-500">実行履歴を読み込み中...</div>
+        <div className="text-gray-500">Loading execution history...</div>
       </div>
     )
   }
@@ -86,7 +86,7 @@ export default function WorkflowHistoryView({ workflowId = 'default' }) {
   if (runs.length === 0) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-gray-500">実行履歴がありません</div>
+        <div className="text-gray-500">No execution history</div>
       </div>
     )
   }
@@ -94,12 +94,12 @@ export default function WorkflowHistoryView({ workflowId = 'default' }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">実行履歴</h3>
+        <h3 className="text-lg font-semibold">Execution History</h3>
         <button
           onClick={loadWorkflowRuns}
           className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
         >
-          更新
+          Refresh
         </button>
       </div>
 
@@ -121,8 +121,8 @@ export default function WorkflowHistoryView({ workflowId = 'default' }) {
                       {format(new Date(run.startedAt), 'yyyy/MM/dd HH:mm:ss')}
                     </div>
                     <div className="text-sm text-gray-500">
-                      継続時間: {formatDuration(run.startedAt, run.endedAt)} | 
-                      入力: {formatInputData(run.inputData)}
+                      Duration: {formatDuration(run.startedAt, run.endedAt)} | 
+                      Input: {formatInputData(run.inputData)}
                     </div>
                   </div>
                 </div>
@@ -136,7 +136,7 @@ export default function WorkflowHistoryView({ workflowId = 'default' }) {
 
               {isExpanded && selectedRunLogs.length > 0 && (
                 <div className="border-t bg-gray-50 p-4">
-                  <h4 className="font-medium mb-3">ノード実行ログ</h4>
+                  <h4 className="font-medium mb-3">Node Execution Logs</h4>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {selectedRunLogs.map((log) => {
                       const LogStatusIcon = statusIcons[log.status] || Clock
@@ -145,7 +145,7 @@ export default function WorkflowHistoryView({ workflowId = 'default' }) {
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center space-x-2">
                               <LogStatusIcon className={`w-4 h-4 ${statusColors[log.status]}`} />
-                              <span className="font-medium">ノード: {log.nodeId}</span>
+                              <span className="font-medium">Node: {log.nodeId}</span>
                               <span className={`px-2 py-1 text-xs rounded ${statusColors[log.status]} bg-gray-100`}>
                                 {log.status}
                               </span>
@@ -157,7 +157,7 @@ export default function WorkflowHistoryView({ workflowId = 'default' }) {
 
                           {Object.keys(log.inputs).length > 0 && (
                             <div className="mb-2">
-                              <div className="text-sm font-medium text-gray-700">入力:</div>
+                              <div className="text-sm font-medium text-gray-700">Input:</div>
                               <div className="text-sm text-gray-600 bg-gray-100 p-2 rounded mt-1">
                                 {JSON.stringify(log.inputs, null, 2)}
                               </div>
@@ -166,7 +166,7 @@ export default function WorkflowHistoryView({ workflowId = 'default' }) {
 
                           {Object.keys(log.outputs).length > 0 && (
                             <div className="mb-2">
-                              <div className="text-sm font-medium text-gray-700">出力:</div>
+                              <div className="text-sm font-medium text-gray-700">Output:</div>
                               <div className="text-sm text-gray-600 bg-gray-100 p-2 rounded mt-1">
                                 {typeof log.outputs === 'string' 
                                   ? log.outputs 
@@ -178,7 +178,7 @@ export default function WorkflowHistoryView({ workflowId = 'default' }) {
 
                           {log.error && (
                             <div className="mb-2">
-                              <div className="text-sm font-medium text-red-700">エラー:</div>
+                              <div className="text-sm font-medium text-red-700">Error:</div>
                               <div className="text-sm text-red-600 bg-red-50 p-2 rounded mt-1">
                                 {log.error}
                               </div>
@@ -187,7 +187,7 @@ export default function WorkflowHistoryView({ workflowId = 'default' }) {
 
                           {log.processingTime && (
                             <div className="text-xs text-gray-500">
-                              処理時間: {log.processingTime}ms
+                              Processing time: {log.processingTime}ms
                             </div>
                           )}
                         </div>
@@ -199,7 +199,7 @@ export default function WorkflowHistoryView({ workflowId = 'default' }) {
 
               {isExpanded && selectedRunLogs.length === 0 && (
                 <div className="border-t bg-gray-50 p-4">
-                  <div className="text-gray-500 text-center">この実行にはノードログがありません</div>
+                  <div className="text-gray-500 text-center">No node logs available for this execution</div>
                 </div>
               )}
             </div>

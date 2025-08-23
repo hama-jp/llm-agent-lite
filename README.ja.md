@@ -20,6 +20,10 @@ flomojiは、複雑な環境構築なしにAIとの対話やワークフロー�
 
 ## 🚀 利用方法
 
+### 🌐 オンラインで試す
+**すぐに使える**: [**👉 flomoji を起動**](https://hama-jp.github.io/llm-agent-lite/) - ダウンロード不要！
+
+### 📥 オフライン利用のためのダウンロード
 flomojiを最も簡単に利用する方法は、設定不要で直接ブラウザで開くことです。
 
 1.  **ダウンロード**: [こちらのリンクから最新版をダウンロードします。](https://github.com/hama-jp/llm-agent-lite/archive/refs/heads/gh-pages.zip)
@@ -64,7 +68,7 @@ pnpm run build
 
 ## 📄 ライセンス
 
-このプロジェクトはMITライセンスです。
+このプロジェクトはApache 2.0ライセンスです。
 
 ## ❤️ サポート
 

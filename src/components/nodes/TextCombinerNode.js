@@ -19,7 +19,7 @@ async function executeTextCombinerNode(node, inputs, context) {
     }
   }
 
-  context.addLog('info', `テキストを結合しました`, node.id, { result: combinedText });
+  context.addLog('info', `Text combined`, node.id, { result: combinedText });
   return combinedText;
 }
 
@@ -28,7 +28,7 @@ async function executeTextCombinerNode(node, inputs, context) {
  * 複数のテキスト入力を結合する
  */
 export const TextCombinerNode = createNodeDefinition(
-  'テキスト結合',
+  'Text Combiner',
   '🔗',
   'teal',
   ['input1', 'input2', 'input3', 'input4'], // 入力ポート: 最大4つ
@@ -36,7 +36,7 @@ export const TextCombinerNode = createNodeDefinition(
   {},
   executeTextCombinerNode, // 実行メソッド
   {
-    description: '最大4つのテキスト入力を結合して1つのテキストとして出力します。',
+    description: 'Combine up to 4 text inputs into a single text output.',
     category: 'text-processing'
   }
 );

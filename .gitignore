@@ -53,3 +53,10 @@ temp/
 
 # Serena directory
 .serena/
+
+# Development planning files
+dev_plan/
+idea/
+*-improvements.md
+*-todo.md
+fs_idea_*.md

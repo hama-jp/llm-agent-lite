@@ -32,33 +32,33 @@ export const nodeTypes = {
  */
 export const nodesByCategory = {
   'input-output': {
-    name: '入出力',
+    name: 'Input/Output',
     nodes: {
       input: InputNode,
       output: OutputNode
     }
   },
   'ai': {
-    name: 'AI・生成',
+    name: 'AI Generation',
     nodes: {
       llm: LLMNode
     }
   },
   'text-processing': {
-    name: 'テキスト処理', 
+    name: 'Text Processing', 
     nodes: {
       text_combiner: TextCombinerNode
     }
   },
   'control-flow': {
-    name: '制御フロー',
+    name: 'Control Flow',
     nodes: {
       if: IfNode,
       while: WhileNode
     }
   },
   'variables': {
-    name: '変数',
+    name: 'Variables',
     nodes: {
       variable_set: VariableSetNode
     }

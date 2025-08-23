@@ -17,7 +17,7 @@ async function executeWhileNode() {
  * 条件が満たされる間、処理を繰り返す
  */
 export const WhileNode = createNodeDefinition(
-  'While繰り返し',
+  'While Loop',
   '🔄',
   'purple',
   ['input', 'loop'], // 入力ポート: input, loop
@@ -32,7 +32,7 @@ export const WhileNode = createNodeDefinition(
   },
   executeWhileNode, // 実行メソッド（placeholder）
   {
-    description: '条件が満たされる間、処理を繰り返します。変数条件による制御とループ回数制限が可能。',
+    description: 'Repeat processing while the condition is met. Supports variable condition control and loop count limit.',
     category: 'control-flow'
   }
 );

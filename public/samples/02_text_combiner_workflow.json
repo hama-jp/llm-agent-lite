@@ -1,6 +1,6 @@
 {
   "id": "sample-02-text-combiner",
-  "name": "02 - テキスト結合とLLM",
+  "name": "02 - Text Combination and LLM",
   "nodes": [
     {
       "id": "input_prompt_template",
@@ -8,8 +8,8 @@
       "position": { "x": 50, "y": 50 },
       "size": { "width": 220, "height": 180 },
       "data": {
-        "label": "プロンプトテンプレート",
-        "value": "以下のテキストを要約してください。",
+        "label": "Prompt Template",
+        "value": "Please summarize the following text.",
         "inputType": "text"
       }
     },
@@ -19,8 +19,8 @@
       "position": { "x": 50, "y": 280 },
       "size": { "width": 220, "height": 180 },
       "data": {
-        "label": "処理対象テキスト",
-        "value": "大規模言語モデル（LLM）は、膨大なテキストデータでトレーニングされた人工知能の一種です。これにより、人間のようなテキストを生成、要約、翻訳、質問応答など、さまざまな自然言語処理タスクを実行できます。",
+        "label": "Text to Process",
+        "value": "Large Language Models (LLMs) are a type of artificial intelligence trained on massive amounts of text data. This enables them to perform various natural language processing tasks such as generating human-like text, summarization, translation, and question answering.",
         "inputType": "text"
       }
     },
@@ -30,7 +30,7 @@
       "position": { "x": 350, "y": 175 },
       "size": { "width": 200, "height": 210 },
       "data": {
-        "label": "プロンプト作成",
+        "label": "Create Prompt",
         "input1": "{{input1}}",
         "input2": "{{input2}}"
       }
@@ -41,9 +41,9 @@
       "position": { "x": 600, "y": 175 },
       "size": { "width": 320, "height": 240 },
       "data": {
-        "label": "LLMによる要約",
-        "systemPrompt": "あなたは優秀な要約エキスパートです。与えられたテキストを簡潔で分かりやすく要約してください。重要なポイントを漏らすことなく、読みやすい形で情報を整理してください。",
-        "prompt": "以下のテキストを要約してください。",
+        "label": "LLM Summarization",
+        "systemPrompt": "You are an excellent summarization expert. Please summarize the given text concisely and clearly. Organize the information in a readable format without missing important points.",
+        "prompt": "Please summarize the following text.",
         "temperature": 1.0,
         "model": "gpt-5-nano"
       }
@@ -54,9 +54,9 @@
       "position": { "x": 970, "y": 200 },
       "size": { "width": 220, "height": 180 },
       "data": {
-        "label": "要約結果",
+        "label": "Summary Result",
         "format": "text",
-        "title": "要約結果",
+        "title": "Summary Result",
         "result": ""
       }
     }

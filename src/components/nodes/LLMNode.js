@@ -88,7 +88,7 @@ async function executeLLMNode(node, inputs, context) {
  * AIモデルを使用してテキストを生成する
  */
 export const LLMNode = createNodeDefinition(
-  'LLM生成',
+  'LLM Generation',
   '🤖',
   'blue',
   ['input'], // 入力ポート: input
@@ -101,7 +101,7 @@ export const LLMNode = createNodeDefinition(
   },
   executeLLMNode, // 実行メソッド
   {
-    description: 'AI言語モデルを使用してテキストを生成します。システムプロンプト、温度設定、モデル選択が可能。',
+    description: 'Generate text using AI language models. Supports system prompts, temperature settings, and model selection.',
     category: 'ai'
   }
 );

@@ -1,6 +1,6 @@
-# 🌊 仮称: flomoji
+# 🌊 flomoji
 
-**A lightweight LLM agent development tool that runs entirely in your browser**
+**Visual LLM workflow builder for everyone**
 
 flomoji enables AI conversations and workflow automation without complex setup. Supporting various AI providers including OpenAI, Anthropic, and local LLMs, it streamlines your work through prompt chaining and multi-step processing.
 
@@ -24,7 +24,11 @@ flomojiは、複雑な環境構築なしにAIとの対話やワークフロー�
 
 ## 🚀 Quick Start (利用方法)
 
-The easiest way to use flomoji is directly in your browser without any setup.
+### 🌐 Try Online (オンラインで試す)
+**Instant access**: [**👉 Launch flomoji**](https://hama-jp.github.io/llm-agent-lite/) - No download required!
+
+### 📥 Download for Offline Use
+The easiest way to use flomoji locally is directly in your browser without any setup.
 
 1.  **Download**: [Click here to download the latest version.](https://github.com/hama-jp/llm-agent-lite/archive/refs/heads/gh-pages.zip)
 2.  **Unzip**: Extract the downloaded ZIP file.
@@ -68,7 +72,7 @@ The output files will be in the `dist` folder. You can deploy this folder to any
 
 ## 📄 License (ライセンス)
 
-This project is licensed under the MIT License.
+This project is licensed under the Apache 2.0 License.
 
 ## ❤️ Support (サポート)
 

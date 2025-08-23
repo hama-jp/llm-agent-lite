@@ -87,14 +87,14 @@ const NodeCanvas = forwardRef(({
                   isConnecting ? 'bg-green-400 hover:bg-green-500 shadow-lg' : 'bg-gray-400 hover:bg-gray-600'
                 }`} 
                 onMouseUp={(e) => onPortMouseUp(e, node.id, index, false)} 
-                title={`入力: ${inputName}`} 
+                title={`Input: ${inputName}`} 
               />
               <span className="text-xs text-gray-600 font-medium">{inputName}</span>
             </div>
           ))}
           <div className="text-xs text-gray-700 bg-gray-50 p-2 rounded border">
             {node.type === 'input' && node.data.inputType !== 'text' && (
-              <div className="truncate">{node.data.value || '入力値を設定...'}</div>
+              <div className="truncate">{node.data.value || 'Set input value...'}</div>
             )}
             {node.type === 'llm' && (
               <textarea 
@@ -103,18 +103,18 @@ const NodeCanvas = forwardRef(({
                 onChange={(e) => onSystemPromptChange(node.id, e.target.value)} 
                 onMouseDown={(e) => e.stopPropagation()} 
                 onClick={(e) => e.stopPropagation()} 
-                placeholder="システムプロンプト..." 
+                placeholder="System prompt..." 
                 style={{ height: `${Math.max(60, (node.size?.height || 240) - 140)}px` }} 
               />
             )}
             {node.type === 'if' && (
-              <div className="truncate">条件: {node.data.condition?.substring(0, 30)}...</div>
+              <div className="truncate">Condition: {node.data.condition?.substring(0, 30)}...</div>
             )}
             {node.type === 'while' && (
-              <div className="truncate">繰り返し: {node.data.variable} {node.data.operator} {node.data.value}</div>
+              <div className="truncate">Loop: {node.data.variable} {node.data.operator} {node.data.value}</div>
             )}
             {node.type === 'variable_set' && (
-              <div className="truncate">変数設定: {node.data.variableName} = {node.data.useInput ? '入力値' : node.data.value?.substring(0, 20) + '...'}</div>
+              <div className="truncate">Variable: {node.data.variableName} = {node.data.useInput ? 'input value' : node.data.value?.substring(0, 20) + '...'}</div>
             )}
             {node.type === 'input' && node.data.inputType === 'text' && (
               <textarea 
@@ -123,7 +123,7 @@ const NodeCanvas = forwardRef(({
                 onChange={(e) => onNodeValueChange(node.id, e.target.value)} 
                 onMouseDown={(e) => e.stopPropagation()} 
                 onClick={(e) => e.stopPropagation()} 
-                placeholder="入力値..." 
+                placeholder="Input value..." 
                 style={{ height: `${Math.max(10, (node.size?.height || 168) - 110)}px` }} 
               />
             )}
@@ -132,7 +132,7 @@ const NodeCanvas = forwardRef(({
                 className="w-full text-xs bg-transparent border-none focus:ring-0 resize-none" 
                 readOnly 
                 value={String(node.data.result || '')} 
-                placeholder="実行結果..." 
+                placeholder="Execution result..." 
                 style={{ height: `${Math.max(10, (node.size?.height || 168) - 110)}px` }} 
               />
             )}
@@ -152,7 +152,7 @@ const NodeCanvas = forwardRef(({
                     : 'bg-gray-400 hover:bg-blue-500'
                 }`} 
                 onMouseDown={(e) => onPortMouseDown(e, node.id, index, true)} 
-                title={`出力: ${outputName}`} 
+                title={`Output: ${outputName}`} 
               />
             </div>
           ))}
@@ -166,7 +166,7 @@ const NodeCanvas = forwardRef(({
               borderRadius: '0 0 6px 0'
             }}
             onMouseDown={(e) => onResizeMouseDown(e, node)}
-            title="ドラッグでサイズ変更"
+            title="Drag to resize"
           />
         )}
       </div>
@@ -266,7 +266,7 @@ const NodeCanvas = forwardRef(({
           className="fixed bg-white rounded-lg shadow-lg border py-2 z-50 min-w-48" 
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
-          <div className="px-3 py-1 text-xs text-gray-500 border-b mb-1">ノードを追加</div>
+          <div className="px-3 py-1 text-xs text-gray-500 border-b mb-1">Add Node</div>
           {Object.entries(nodeTypes).map(([type, config]) => (
             <button 
               key={type} 

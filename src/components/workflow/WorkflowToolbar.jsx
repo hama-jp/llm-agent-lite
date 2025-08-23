@@ -34,16 +34,16 @@ const WorkflowToolbar = ({
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="flex gap-2">
             <FolderOpen className="h-4 w-4" />
-            <span>ワークフロー</span>
+            <span>Workflow</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
           <DropdownMenuItem onSelect={onNewWorkflow}>
             <FilePlus className="mr-2 h-4 w-4" />
-            新規作成
+            Create New
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuLabel>開く</DropdownMenuLabel>
+          <DropdownMenuLabel>Open</DropdownMenuLabel>
           {workflows.map(wf => (
             <DropdownMenuItem key={wf.id} onSelect={() => onLoadWorkflow(wf.id)}>
               {wf.name}
@@ -52,11 +52,11 @@ const WorkflowToolbar = ({
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={onImportWorkflow}>
             <Upload className="mr-2 h-4 w-4" />
-            インポート
+            Import
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onExportWorkflow}>
             <Download className="mr-2 h-4 w-4" />
-            エクスポート
+            Export
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -92,15 +92,15 @@ const WorkflowToolbar = ({
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>本当に削除しますか？</AlertDialogTitle>
+            <AlertDialogTitle>Are you sure you want to delete?</AlertDialogTitle>
             <AlertDialogDescription>
-              この操作は元に戻せません。「{currentWorkflow?.name}」は完全に削除されます。
+              This action cannot be undone. "{currentWorkflow?.name}" will be permanently deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => onDeleteWorkflow(currentWorkflow.id)}>
-              削除
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -116,7 +116,7 @@ const WorkflowToolbar = ({
         className="gap-1.5 bg-green-500 hover:bg-green-600 text-white"
       >
         <Play className="h-4 w-4" />
-        すべて実行
+        Run All
       </Button>
       <Button 
         onClick={onStepForward} 
@@ -126,7 +126,7 @@ const WorkflowToolbar = ({
         className="gap-1.5"
       >
         <StepForward className="h-4 w-4" />
-        ステップ
+        Step
       </Button>
       <Button 
         onClick={onResetExecution} 
@@ -136,7 +136,7 @@ const WorkflowToolbar = ({
         className="gap-1.5"
       >
         <RotateCcw className="h-4 w-4" />
-        リセット
+        Reset
       </Button>
       
       <div className="w-px h-6 bg-gray-200 mx-2" />
@@ -149,7 +149,7 @@ const WorkflowToolbar = ({
         className="gap-1.5"
       >
         <History className="h-4 w-4" />
-        実行履歴
+        Execution History
       </Button>
     </div>
   );

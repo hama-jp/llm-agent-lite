@@ -32,19 +32,19 @@ const SettingsView = () => {
     setValidationErrors(errors)
 
     if (errors.length > 0) {
-      setTestStatus({ type: 'error', message: '設定に問題があります。エラーを確認してください。' })
+      setTestStatus({ type: 'error', message: 'There are issues with the settings. Please check the errors.' })
       return
     }
 
     // 設定を保存
     llmService.saveSettings(settings)
-    setTestStatus({ type: 'success', message: '設定が保存されました' })
+    setTestStatus({ type: 'success', message: 'Settings saved successfully' })
     setTimeout(() => setTestStatus(null), 3000)
   }
 
   const handleTest = async () => {
     if (!settings.apiKey) {
-      setTestStatus({ type: 'error', message: 'APIキーを入力してください' })
+      setTestStatus({ type: 'error', message: 'Please enter API key' })
       return
     }
 
@@ -76,8 +76,8 @@ const SettingsView = () => {
   const providerOptions = [
     { value: 'openai', label: 'OpenAI' },
     { value: 'anthropic', label: 'Anthropic' },
-    { value: 'local', label: 'ローカルLLM' },
-    { value: 'custom', label: 'カスタムAPI' }
+    { value: 'local', label: 'Local LLM' },
+    { value: 'custom', label: 'Custom API' }
   ]
 
   const modelOptions = {
@@ -91,7 +91,7 @@ const SettingsView = () => {
     <div className="max-w-2xl mx-auto space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>LLMサービス設定</CardTitle>
+          <CardTitle>LLM Service Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* バリデーションエラー表示 */}
@@ -110,13 +110,13 @@ const SettingsView = () => {
 
           {/* プロバイダー選択 */}
           <div className="space-y-2">
-            <Label htmlFor="provider">プロバイダー</Label>
+            <Label htmlFor="provider">Provider</Label>
             <Select
               value={settings.provider}
               onValueChange={(value) => handleInputChange('provider', value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="プロバイダーを選択" />
+                <SelectValue placeholder="Select provider" />
               </SelectTrigger>
               <SelectContent>
                 {providerOptions.map((option) => (
@@ -130,20 +130,20 @@ const SettingsView = () => {
 
           {/* APIキー */}
           <div className="space-y-2">
-            <Label htmlFor="apiKey">APIキー</Label>
+            <Label htmlFor="apiKey">API Key</Label>
             <Input
               id="apiKey"
               type="password"
               value={settings.apiKey}
               onChange={(e) => handleInputChange('apiKey', e.target.value)}
-              placeholder="APIキーを入力してください"
+              placeholder="Enter your API key"
             />
           </div>
 
           {/* ベースURL（ローカルLLMやカスタムAPI用） */}
           {(settings.provider === 'local' || settings.provider === 'custom') && (
             <div className="space-y-2">
-              <Label htmlFor="baseUrl">ベースURL</Label>
+              <Label htmlFor="baseUrl">Base URL</Label>
               <Input
                 id="baseUrl"
                 value={settings.baseUrl}
@@ -151,20 +151,20 @@ const SettingsView = () => {
                 placeholder="http://localhost:8080/v1"
               />
               <p className="text-xs text-gray-500">
-                例: http://localhost:1234/v1 (LM Studio), http://localhost:8080/v1 (Ollama)
+                Example: http://localhost:1234/v1 (LM Studio), http://localhost:8080/v1 (Ollama)
               </p>
             </div>
           )}
 
           {/* モデル選択 */}
           <div className="space-y-2">
-            <Label htmlFor="model">モデル</Label>
+            <Label htmlFor="model">Model</Label>
             {(settings.provider === 'local' || settings.provider === 'custom') ? (
               <Input
                 id="model"
                 value={settings.model}
                 onChange={(e) => handleInputChange('model', e.target.value)}
-                placeholder="モデル名を入力してください (例: llama2, mistral, custom-model)"
+                placeholder="Enter model name (e.g., llama2, mistral, custom-model)"
               />
             ) : (
               <Select
@@ -172,7 +172,7 @@ const SettingsView = () => {
                 onValueChange={(value) => handleInputChange('model', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="モデルを選択" />
+                  <SelectValue placeholder="Select model" />
                 </SelectTrigger>
                 <SelectContent>
                   {(modelOptions[settings.provider] || []).map((model) => (
@@ -187,7 +187,7 @@ const SettingsView = () => {
 
           {/* 温度設定 */}
           <div className="space-y-2">
-            <Label htmlFor="temperature">温度 (0.0 - 2.0)</Label>
+            <Label htmlFor="temperature">Temperature (0.0 - 2.0)</Label>
             <Input
               id="temperature"
               type="number"
@@ -198,14 +198,14 @@ const SettingsView = () => {
               onChange={(e) => handleInputChange('temperature', parseFloat(e.target.value) || 0)}
             />
             <p className="text-xs text-gray-500">
-              低い値ほど一貫性が高く、高い値ほど創造的になります
+              Lower values are more consistent, higher values are more creative
             </p>
           </div>
 
           {/* 最大トークン数 */}
           <div className="space-y-2">
             <Label htmlFor="maxTokens">
-              {settings.model?.startsWith('gpt-5') ? '最大補完トークン数' : '最大トークン数'}
+              {settings.model?.startsWith('gpt-5') ? 'Max Completion Tokens' : 'Max Tokens'}
             </Label>
             <Input
               id="maxTokens"
@@ -216,7 +216,7 @@ const SettingsView = () => {
               onChange={(e) => handleInputChange('maxTokens', parseInt(e.target.value) || 1)}
             />
             <p className="text-xs text-gray-500">
-              生成される応答の最大長を制限します
+              Limits the maximum length of generated responses
             </p>
           </div>
 
@@ -238,7 +238,7 @@ const SettingsView = () => {
           <div className="flex space-x-2 pt-4">
             <Button onClick={handleSave} className="flex-1">
               <Save className="h-4 w-4 mr-2" />
-              設定を保存
+              Save Settings
             </Button>
             <Button
               onClick={handleTest}
@@ -247,7 +247,7 @@ const SettingsView = () => {
               className="flex-1"
             >
               <TestTube className="h-4 w-4 mr-2" />
-              {isLoading ? '接続テスト中...' : '接続テスト'}
+              {isLoading ? 'Testing Connection...' : 'Test Connection'}
             </Button>
           </div>
         </CardContent>
@@ -256,24 +256,24 @@ const SettingsView = () => {
       {/* 使用方法の説明 */}
       <Card>
         <CardHeader>
-          <CardTitle>使用方法</CardTitle>
+          <CardTitle>Usage Instructions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-gray-600">
           <div>
             <h4 className="font-medium text-gray-800 mb-1">OpenAI:</h4>
-            <p>OpenAI APIキーを取得し、上記に入力してください。</p>
+            <p>Obtain an OpenAI API key and enter it above.</p>
           </div>
           <div>
             <h4 className="font-medium text-gray-800 mb-1">Anthropic:</h4>
-            <p>Anthropic APIキーを取得し、上記に入力してください。</p>
+            <p>Obtain an Anthropic API key and enter it above.</p>
           </div>
           <div>
-            <h4 className="font-medium text-gray-800 mb-1">ローカルLLM:</h4>
-            <p>LM Studio、Ollama、text-generation-webuiなどのローカルサーバーのエンドポイントを設定してください。</p>
+            <h4 className="font-medium text-gray-800 mb-1">Local LLM:</h4>
+            <p>Configure endpoints for local servers like LM Studio, Ollama, or text-generation-webui.</p>
           </div>
           <div>
-            <h4 className="font-medium text-gray-800 mb-1">カスタムAPI:</h4>
-            <p>OpenAI互換APIのエンドポイントを設定してください。</p>
+            <h4 className="font-medium text-gray-800 mb-1">Custom API:</h4>
+            <p>Configure endpoints for OpenAI-compatible APIs.</p>
           </div>
         </CardContent>
       </Card>

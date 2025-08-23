@@ -35,14 +35,14 @@ async function executeIfNode(node, inputs, context) {
  * - 使われないポートにはnullが出力される
  */
 export const IfNode = createNodeDefinition(
-  'If条件分岐',
+  'If Condition',
   '🔀',
   'pink',
   ['input'], // 入力ポート: input
   ['true', 'false'], // 出力ポート: true (条件満たす場合), false (条件満たさない場合)
   {
     conditionType: 'llm',
-    condition: '入力が肯定的な内容かどうか判断してください',
+    condition: 'Please determine if the input has positive content',
     variable: '',
     operator: '==',
     value: '',
@@ -51,7 +51,7 @@ export const IfNode = createNodeDefinition(
   },
   executeIfNode, // 実行メソッド（プレースホルダー）
   {
-    description: '条件に基づいてワークフローを分岐させます。条件がtrueの場合は入力をtrueポートに、falseの場合はfalseポートに流します。LLM判定または変数比較による条件設定が可能。',
+    description: 'Branch the workflow based on conditions. When the condition is true, input flows to the true port; when false, flows to the false port. Supports LLM evaluation or variable comparison conditions.',
     category: 'control-flow'
   }
 );
