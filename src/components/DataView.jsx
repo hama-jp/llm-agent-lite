@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
 import workflowManagerService from '../services/workflowManagerService.js'
 import logService from '../services/logService.js'
+import StorageService from '../services/storageService.js'
 
 const DataView = () => {
   const [_chatHistory, setChatHistory] = useState([])
@@ -17,16 +18,13 @@ const DataView = () => {
 
   const loadData = () => {
     // チャット履歴を読み込み
-    const savedChatHistory = localStorage.getItem('llm-agent-chat-history')
-    if (savedChatHistory) {
-      try {
-        const history = JSON.parse(savedChatHistory)
-        const sessions = groupChatMessages(history)
-        setChatHistory(sessions)
-      } catch (error) {
-        console.error('Failed to load chat history:', error)
-        setChatHistory([])
-      }
+    try {
+      const history = StorageService.getChatHistory([])
+      const sessions = groupChatMessages(history)
+      setChatHistory(sessions)
+    } catch (error) {
+      console.error('Failed to load chat history:', error)
+      setChatHistory([])
     }
 
     // ワークフローデータを読み込み
@@ -66,7 +64,7 @@ const DataView = () => {
 
     switch (type) {
       case 'chat':
-        data = { chatHistory: JSON.parse(localStorage.getItem('llm-agent-chat-history') || '[]') }
+        data = { chatHistory: StorageService.getChatHistory([]) }
         filename = 'chat_history.json'
         break
       case 'workflows':
@@ -75,9 +73,9 @@ const DataView = () => {
         break
       case 'all':
         data = {
-          chatHistory: JSON.parse(localStorage.getItem('llm-agent-chat-history') || '[]'),
+          chatHistory: StorageService.getChatHistory([]),
           workflows: workflowManagerService.getWorkflows(),
-          settings: JSON.parse(localStorage.getItem('llm-agent-settings') || '{}'),
+          settings: StorageService.getSettings({}),
         }
         filename = 'llm_agent_backup.json'
         break
@@ -104,14 +102,14 @@ const DataView = () => {
         const data = JSON.parse(e.target.result)
         
         if (data.chatHistory) {
-          localStorage.setItem('llm-agent-chat-history', JSON.stringify(data.chatHistory))
+          StorageService.setChatHistory(data.chatHistory)
         }
         if (data.workflows) {
           const workflows = data.workflows;
           Object.values(workflows).forEach(wf => workflowManagerService.saveWorkflow(wf));
         }
         if (data.settings) {
-          localStorage.setItem('llm-agent-settings', JSON.stringify(data.settings))
+          StorageService.setSettings(data.settings)
         }
         
         loadData()
@@ -145,10 +143,7 @@ const DataView = () => {
 
   const handleClearAllData = () => {
     if (confirm('すべてのデータを削除しますか？この操作は取り消せません。')) {
-      localStorage.removeItem('llm-agent-chat-history')
-      localStorage.removeItem('llm-agent-workflows')
-      localStorage.removeItem('llm-agent-current-workflow-id')
-      localStorage.removeItem('llm-agent-settings')
+      StorageService.clear() // 全てのStorageServiceキーをクリア
       // 実行履歴も削除
       logService.clearAllLogs().catch(console.error)
       loadData()
@@ -157,12 +152,8 @@ const DataView = () => {
   }
 
   const calculateStorageSize = () => {
-    let totalSize = 0
-    const keys = ['llm-agent-chat-history', 'llm-agent-workflows', 'llm-agent-current-workflow-id', 'llm-agent-settings']
-    keys.forEach(key => {
-      const item = localStorage.getItem(key)
-      if (item) totalSize += new Blob([item]).size
-    })
+    const usageInfo = StorageService.getUsageInfo()
+    const totalSize = Object.values(usageInfo).reduce((total, info) => total + info.size, 0)
     return (totalSize / 1024).toFixed(1) + ' KB'
   }
 
