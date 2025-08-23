@@ -10,7 +10,7 @@ import { createNodeDefinition } from './types.js';
 async function executeVariableSetNode(node, inputs, context) {
   const variableName = node.data.variableName || '';
   if (!variableName) {
-    throw new Error('変数名が設定されていません');
+    throw new Error('Variable name is not set');
   }
 
   let value;
@@ -18,7 +18,7 @@ async function executeVariableSetNode(node, inputs, context) {
     // 接続からの入力を使用
     const inputValues = Object.values(inputs).filter(v => v !== undefined && v !== null);
     if (inputValues.length === 0) {
-      throw new Error('変数設定ノードに入力がありません');
+      throw new Error('No input provided to variable set node');
     }
     value = String(inputValues[0]);
   } else {
@@ -27,7 +27,7 @@ async function executeVariableSetNode(node, inputs, context) {
   }
 
   context.variables[variableName] = value;
-  context.addLog('info', `変数 '${variableName}' に値を設定: ${value}`, node.id, { variableName, value });
+  context.addLog('info', `Set variable '${variableName}' to value: ${value}`, node.id, { variableName, value });
   
   // パススルー: 入力値または設定値をそのまま出力
   return node.data.useInput ? value : value;
@@ -38,7 +38,7 @@ async function executeVariableSetNode(node, inputs, context) {
  * ワークフロー内で使用する変数を設定する
  */
 export const VariableSetNode = createNodeDefinition(
-  '変数設定',
+  'Variable Set',
   '📝',
   'amber',
   ['input'], // 入力ポート: input
@@ -50,7 +50,7 @@ export const VariableSetNode = createNodeDefinition(
   },
   executeVariableSetNode, // 実行メソッド
   {
-    description: 'ワークフロー内で使用する変数を設定します。固定値または入力値を変数として保存可能。',
+    description: 'Set variables for use within the workflow. Can save fixed values or input values as variables.',
     category: 'variables'
   }
 );

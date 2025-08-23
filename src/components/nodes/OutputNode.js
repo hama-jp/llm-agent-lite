@@ -28,19 +28,19 @@ async function executeOutputNode(node, inputs) {
  * ワークフローの結果を表示する
  */
 export const OutputNode = createNodeDefinition(
-  '出力',
+  'Output',
   '📤',
   'green',
   ['input'], // 入力ポート: input
   [], // 出力ポートなし
   {
     format: 'text',
-    title: '結果',
+    title: 'Result',
     result: ''
   },
   executeOutputNode, // 実行メソッド
   {
-    description: 'ワークフローの結果を表示します。テキストまたは構造化データの出力に対応。',
+    description: 'Display workflow results. Supports text or structured data output.',
     category: 'input-output'
   }
 );

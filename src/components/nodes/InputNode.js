@@ -23,7 +23,7 @@ async function executeInputNode(node, inputs, context) {
  * ワークフローの開始点として使用される
  */
 export const InputNode = createNodeDefinition(
-  '入力',
+  'Input',
   '📥',
   'orange',
   [], // 入力ポートなし
@@ -34,7 +34,7 @@ export const InputNode = createNodeDefinition(
   },
   executeInputNode, // 実行メソッド
   {
-    description: 'ワークフローの開始点。テキストまたはファイルを入力として設定できます。',
+    description: 'Starting point of the workflow. Allows setting text or file as input.',
     category: 'input-output'
   }
 );
