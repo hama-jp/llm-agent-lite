@@ -168,7 +168,7 @@ const useWorkflowExecution = ({
       setExecutionResult({ success: false, error: error.message });
       handleResetExecution();
     }
-  }, [executor, nodes, connections, preprocessNodesForExecution, setNodes, setExecutor, setExecutionState, setExecutionResult, processExecutionCompletion]);
+  }, [executor, nodes, connections, preprocessNodesForExecution, setNodes, setExecutor, setExecutionState, setExecutionResult, processExecutionCompletion, handleResetExecution]);
 
   const handleResetExecution = useCallback(() => {
     if (executor) executor.stop();
