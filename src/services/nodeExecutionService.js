@@ -302,11 +302,22 @@ class NodeExecutionService {
         if (sourceNode.type === 'if') {
           // 'if' node output is an object { condition, true, false }
           // Port 0 ('true') or Port 1 ('false')
+          this.addLog('debug', `If条件分岐から入力を取得中`, node.id, { 
+            sourceOutput, 
+            portIndex: conn.from.portIndex,
+            sourceNodeId: sourceNode.id 
+          });
+          
           if (conn.from.portIndex === 0) {
             valueToAssign = sourceOutput.true;
           } else if (conn.from.portIndex === 1) {
             valueToAssign = sourceOutput.false;
           }
+          
+          this.addLog('debug', `If条件分岐からの値`, node.id, { 
+            valueToAssign, 
+            portIndex: conn.from.portIndex 
+          });
         } else {
           valueToAssign = sourceOutput;
         }
