@@ -1,5 +1,4 @@
-const WORKFLOWS_KEY = 'llm-agent-workflows';
-const CURRENT_WORKFLOW_ID_KEY = 'llm-agent-current-workflow-id';
+import StorageService from './storageService.js'
 
 function generateId() {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -20,13 +19,7 @@ class WorkflowManagerService {
   }
 
   getWorkflows() {
-    try {
-      const workflowsStr = localStorage.getItem(WORKFLOWS_KEY);
-      return workflowsStr ? JSON.parse(workflowsStr) : {};
-    } catch (e) {
-      console.error("Failed to parse workflows from localStorage", e);
-      return {};
-    }
+    return StorageService.getWorkflows({});
   }
 
   getWorkflow(id) {
@@ -44,13 +37,13 @@ class WorkflowManagerService {
       ...workflowData,
       lastModified: new Date().toISOString(),
     };
-    localStorage.setItem(WORKFLOWS_KEY, JSON.stringify(workflows));
+    StorageService.setWorkflows(workflows);
   }
 
   deleteWorkflow(id) {
     const workflows = this.getWorkflows();
     delete workflows[id];
-    localStorage.setItem(WORKFLOWS_KEY, JSON.stringify(workflows));
+    StorageService.setWorkflows(workflows);
 
     if (this.getCurrentWorkflowId() === id) {
       const remainingIds = Object.keys(workflows);
@@ -65,11 +58,11 @@ class WorkflowManagerService {
   }
 
   getCurrentWorkflowId() {
-    return localStorage.getItem(CURRENT_WORKFLOW_ID_KEY);
+    return StorageService.getCurrentWorkflowId();
   }
 
   setCurrentWorkflowId(id) {
-    localStorage.setItem(CURRENT_WORKFLOW_ID_KEY, id);
+    StorageService.setCurrentWorkflowId(id);
   }
 
   createNewWorkflow(name = '新規フロー') {

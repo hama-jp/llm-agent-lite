@@ -1,5 +1,6 @@
 // ワークフローサービス
 import llmService from './llmService.js'
+import StorageService from './storageService.js'
 
 class WorkflowService {
   constructor() {
@@ -8,8 +9,7 @@ class WorkflowService {
 
   // ワークフローをローカルストレージから読み込み
   loadWorkflows() {
-    const saved = localStorage.getItem('llm-agent-workflows')
-    return saved ? JSON.parse(saved) : [
+    return StorageService.getWorkflows([
       {
         id: 1,
         name: 'テキスト要約',
@@ -54,12 +54,12 @@ class WorkflowService {
         createdAt: new Date().toISOString(),
         lastRun: null
       }
-    ]
+    ])
   }
 
   // ワークフローを保存
   saveWorkflows() {
-    localStorage.setItem('llm-agent-workflows', JSON.stringify(this.workflows))
+    StorageService.setWorkflows(this.workflows)
   }
 
   // 全ワークフローを取得
@@ -234,8 +234,7 @@ class WorkflowService {
 
   // ワークフロー実行履歴を取得
   getExecutionHistory() {
-    const saved = localStorage.getItem('llm-agent-workflow-history')
-    return saved ? JSON.parse(saved) : []
+    return StorageService.get(StorageService.KEYS.WORKFLOW_HISTORY, [])
   }
 
   // ワークフロー実行履歴を保存
@@ -245,7 +244,7 @@ class WorkflowService {
     
     // 最新100件のみ保持
     const trimmedHistory = history.slice(0, 100)
-    localStorage.setItem('llm-agent-workflow-history', JSON.stringify(trimmedHistory))
+    StorageService.set(StorageService.KEYS.WORKFLOW_HISTORY, trimmedHistory)
   }
 
   // ワークフローテンプレートを取得

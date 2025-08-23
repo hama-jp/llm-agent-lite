@@ -57,9 +57,10 @@ export const logService = {
     const runs = await db.workflow_runs
       .where('workflowId')
       .equals(workflowId)
-      .orderBy('startedAt')
-      .reverse()
       .toArray();
+    
+    // 日付順でソート（最新が最初）
+    runs.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
     
     return runs.map(run => ({
       ...run,
@@ -71,8 +72,10 @@ export const logService = {
     const logs = await db.node_logs
       .where('runId')
       .equals(runId)
-      .orderBy('timestamp')
       .toArray();
+    
+    // タイムスタンプ順でソート
+    logs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     
     return logs.map(log => ({
       ...log,

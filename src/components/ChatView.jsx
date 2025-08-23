@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input.jsx'
 import { Card, CardContent } from '@/components/ui/card.jsx'
 import { Alert, AlertDescription } from '@/components/ui/alert.jsx'
 import llmService from '../services/llmService.js'
+import StorageService from '../services/storageService.js'
 
 const ChatView = () => {
   const [messages, setMessages] = useState([
@@ -56,9 +57,9 @@ const ChatView = () => {
       setMessages(prev => [...prev, botMessage])
       
       // チャット履歴をローカルストレージに保存
-      const chatHistory = JSON.parse(localStorage.getItem('llm-agent-chat-history') || '[]')
+      const chatHistory = StorageService.getChatHistory([])
       const updatedHistory = [...chatHistory, userMessage, botMessage]
-      localStorage.setItem('llm-agent-chat-history', JSON.stringify(updatedHistory.slice(-100))) // 最新100件のみ保存
+      StorageService.setChatHistory(updatedHistory, 100) // 最新100件のみ保存
       
     } catch (error) {
       console.error('LLM API Error:', error)
@@ -95,23 +96,16 @@ const ChatView = () => {
           timestamp: new Date().toLocaleTimeString()
         }
       ])
-      localStorage.removeItem('llm-agent-chat-history')
+      StorageService.remove(StorageService.KEYS.CHAT_HISTORY)
       setError(null)
     }
   }
 
   // コンポーネントマウント時にチャット履歴を復元
   useEffect(() => {
-    const savedHistory = localStorage.getItem('llm-agent-chat-history')
-    if (savedHistory) {
-      try {
-        const history = JSON.parse(savedHistory)
-        if (history.length > 0) {
-          setMessages(history)
-        }
-      } catch (error) {
-        console.error('Failed to load chat history:', error)
-      }
+    const history = StorageService.getChatHistory([])
+    if (history.length > 0) {
+      setMessages(history)
     }
   }, [])
 

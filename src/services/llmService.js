@@ -1,4 +1,6 @@
 // LLMサービス接続機能
+import StorageService from './storageService.js'
+
 class LLMService {
   constructor() {
     this.settings = this.loadSettings()
@@ -6,21 +8,20 @@ class LLMService {
 
   // 設定をローカルストレージから読み込み
   loadSettings() {
-    const saved = localStorage.getItem('llm-agent-settings')
-    return saved ? JSON.parse(saved) : {
+    return StorageService.getSettings({
       provider: 'openai',
       apiKey: '',
       baseUrl: '',
       model: 'gpt-3.5-turbo',
       temperature: 0.7,
       maxTokens: 2048
-    }
+    })
   }
 
   // 設定を保存
   saveSettings(settings) {
     this.settings = settings
-    localStorage.setItem('llm-agent-settings', JSON.stringify(settings))
+    StorageService.setSettings(settings)
   }
 
   // API接続テスト

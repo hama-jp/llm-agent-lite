@@ -1,5 +1,6 @@
 import llmService from './llmService.js'
 import logService from './logService.js'
+import StorageService from './storageService.js'
 import { nodeTypes } from '../components/nodes/index.js'
 
 class NodeExecutionService {
@@ -84,7 +85,7 @@ class NodeExecutionService {
     this.clearLog()
 
     // ワークフロー実行の開始をログに記録
-    const workflowId = 'default' // TODO: 実際のワークフローIDを取得
+    const workflowId = StorageService.getCurrentWorkflowId() || 'default'
     this.currentRunId = await logService.createRun(workflowId, inputData)
     
     this.addLog('info', 'ワークフロー実行準備完了', null, {
