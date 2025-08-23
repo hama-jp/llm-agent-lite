@@ -16,6 +16,12 @@ flomojiは、複雑な環境構築なしにAIとの対話やワークフロー�
 - 🔌 **Multi-LLM Support**: Works with OpenAI, Anthropic, and local LLMs.
 - 📊 **Data Management**: Easily manage and export your data.
 
+## 📸 Screenshots
+
+![flomoji Workflow Interface](docs/app-screenshot.png)
+
+*Visual workflow builder with node-based interface for creating AI-powered automation workflows.*
+
 ## 🚀 Quick Start (利用方法)
 
 The easiest way to use flomoji is directly in your browser without any setup.
