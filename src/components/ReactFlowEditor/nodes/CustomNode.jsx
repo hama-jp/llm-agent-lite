@@ -1,8 +1,27 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import useExecutionStore from '../../../store/executionStore';
 
-const CustomNode = ({ data, children }) => {
+const CustomNode = ({ data, children, id }) => {
+  const executionState = useExecutionStore(state => state.executionState);
+  
+  // 実行状態をチェック  
+  const isRunning = executionState?.running;
+  const isCurrentlyExecuting = executionState?.currentNodeId === id;
+  const isExecuted = executionState?.executedNodeIds?.has?.(id);
+  
+  // デバッグログ（実行中のみ）
+  if (id && (isRunning || isCurrentlyExecuting || isExecuted)) {
+    console.log(`Node ${id} - Running: ${isRunning}, Current: ${isCurrentlyExecuting}, Executed: ${isExecuted}`);
+    console.log(`  - Full executionState:`, executionState);
+    console.log(`  - CurrentNodeId from state: "${executionState?.currentNodeId}"`);
+    console.log(`  - This node ID: "${id}"`);
+    console.log(`  - ID types - state: ${typeof executionState?.currentNodeId}, node: ${typeof id}`);
+    console.log(`  - Strict equality: ${executionState?.currentNodeId === id}`);
+    console.log(`  - ExecutedNodeIds:`, executionState?.executedNodeIds);
+    console.log(`  - ExecutedNodeIds has this id:`, executionState?.executedNodeIds?.has?.(id));
+  }
   const { label, icon, inputs = [], outputs = [] } = data;
   
   // デフォルトのハンドル設定（ノードタイプに基づく）
@@ -26,9 +45,25 @@ const CustomNode = ({ data, children }) => {
   // ハンドル数に基づく高さの計算
   const maxHandles = Math.max(finalInputs.length, finalOutputs.length);
   const minHeightClass = maxHandles >= 4 ? 'min-h-48' : 'min-h-32';
+  
+  // 実行状態に応じた枠線スタイル
+  let borderClass = 'border-gray-300';
+  let shadowClass = 'shadow-md';
+  let animationClass = '';
+  
+  if (isCurrentlyExecuting) {
+    borderClass = 'border-blue-500';
+    shadowClass = 'shadow-blue-200 shadow-lg';
+    animationClass = 'animate-pulse';
+    console.log(`Node ${id} applying CURRENT styles: ${borderClass} ${shadowClass} ${animationClass}`);
+  } else if (isExecuted) {
+    borderClass = 'border-green-500';
+    shadowClass = 'shadow-green-200 shadow-lg';
+    console.log(`Node ${id} applying EXECUTED styles: ${borderClass} ${shadowClass}`);
+  }
 
   return (
-    <div className={`relative bg-white border-2 border-gray-300 rounded-lg shadow-md min-w-64 ${minHeightClass}`}>
+    <div className={`relative bg-white border-2 ${borderClass} rounded-lg ${shadowClass} ${animationClass} w-fit min-w-64 ${minHeightClass} transition-all duration-300`}>
       {/* Input handles */}
       {finalInputs.map((input, index) => (
         <React.Fragment key={input.id || `input-${index}`}>
@@ -84,8 +119,8 @@ const CustomNode = ({ data, children }) => {
       </div>
 
       {/* Content */}
-      <div className="p-4">
-        <div className="nodrag">
+      <div className="p-4 w-full">
+        <div className="nodrag w-full">
           {children}
         </div>
       </div>

@@ -20,7 +20,6 @@ import CustomEdge from './edges/CustomEdge';
 import ContextMenu from './ContextMenu';
 import ExecutionOutputWindow from '../ExecutionOutputWindow';
 import WorkflowToolbar from '../WorkflowToolbar';
-import { Button } from '@/components/ui/button';
 
 import { nodeTypes as nodeDefinitions } from '../nodes/index.js';
 import useWorkflowExecution from '../../hooks/useWorkflowExecution';
@@ -35,6 +34,8 @@ const selectOnNodesChange = (state) => state.onNodesChange;
 const selectOnEdgesChange = (state) => state.onEdgesChange;
 const selectOnConnect = (state) => state.onConnect;
 const selectSetNodes = (state) => state.setNodes;
+const selectSetEdges = (state) => state.setEdges;
+const selectAddNode = (state) => state.addNode;
 const selectSetViewport = (state) => state.setViewport;
 const selectLoadWorkflow = (state) => state.loadWorkflow;
 
@@ -66,21 +67,25 @@ const ReactFlowEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEd
   const rawEdges = useReactFlowStore(selectEdges);
   const nodes = useMemo(() => {
     const result = Array.isArray(rawNodes) ? rawNodes : [];
-    console.log('ReactFlowEditor - nodes:', result);
+    if (result.length === 0) {
+      console.log('⚠️ ReactFlowEditor - nodesが空です, rawNodes:', rawNodes);
+    } else {
+      console.log('📊 ReactFlowEditor - nodes loaded:', result.length, 'items');
+    }
     return result;
   }, [rawNodes]);
   const edges = useMemo(() => {
     const result = Array.isArray(rawEdges) ? rawEdges : [];
-    console.log('ReactFlowEditor - edges:', result);
+    console.log('🔗 ReactFlowEditor - edges:', result.length, 'connections');
     return result;
   }, [rawEdges]);
-  
-  console.log('ReactFlowEditor レンダリング - nodes.length:', nodes.length, 'edges.length:', edges.length);
   const viewport = useReactFlowStore(selectViewport);
   const onNodesChange = useReactFlowStore(selectOnNodesChange);
   const onEdgesChange = useReactFlowStore(selectOnEdgesChange);
   const onConnect = useReactFlowStore(selectOnConnect);
   const setNodes = useReactFlowStore(selectSetNodes);
+  const setEdges = useReactFlowStore(selectSetEdges);
+  const addNode = useReactFlowStore(selectAddNode);
   const setViewport = useReactFlowStore(selectSetViewport);
   const loadWorkflow = useReactFlowStore(selectLoadWorkflow);
 
@@ -95,8 +100,6 @@ const ReactFlowEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEd
 
   const setContextMenu = useUIStore(state => state.setContextMenu);
   const setEditingNode = useUIStore(state => state.setEditingNode);
-  const showDebugLog = useUIStore(state => state.showDebugLog);
-  const setShowDebugLog = useUIStore(state => state.setShowDebugLog);
   // selectedNodeとonSelectedNodeChangeはpropsから受け取る
   const { screenToFlowPosition, setViewport: setRfViewport } = useReactFlow();
   const [currentWorkflow, setCurrentWorkflow] = useState(null);
@@ -107,15 +110,21 @@ const ReactFlowEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEd
   useEffect(() => {
     const initialize = async () => {
       try {
+        console.log('🚀 ReactFlowEditor - 初期化開始');
         await workflowManagerService.initialize();
         const currentId = workflowManagerService.getCurrentWorkflowId();
+        console.log('📝 Current workflow ID:', currentId);
+        
         const workflowsData = workflowManagerService.getWorkflows();
         const workflowsList = Object.values(workflowsData);
+        console.log('📁 Available workflows:', workflowsList.length);
         setWorkflows(workflowsList);
         
         if (currentId) {
           const workflow = workflowManagerService.getWorkflow(currentId);
+          console.log('🔍 Found workflow for ID:', currentId, workflow);
           if (workflow && workflow.flow) {
+            console.log('📊 Workflow flow data:', workflow.flow);
             loadWorkflow(currentId);
             setCurrentWorkflow(workflow);
           } else {
@@ -157,32 +166,85 @@ const ReactFlowEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEd
     }
   }, [nodes, edges, viewport, currentWorkflow, hasUnsavedChanges]);
 
+  // Auto-save debounced effect
+  useEffect(() => {
+    if (currentWorkflow && (nodes.length > 0 || edges.length > 0)) {
+      const workflowToSave = {
+        ...currentWorkflow,
+        flow: { nodes, edges, viewport }
+      };
+      debouncedSave(workflowToSave);
+    }
+  }, [nodes, edges, viewport, currentWorkflow, debouncedSave]);
+
   // Workflow management handlers
   const handleWorkflowSave = useCallback(() => {
     if (currentWorkflow) {
       const workflowToSave = {
         ...currentWorkflow,
-        flow: { nodes, edges, viewport }
+        flow: { 
+          nodes: nodes || [], 
+          edges: edges || [], 
+          viewport: viewport || { x: 0, y: 0, zoom: 1 }
+        },
+        lastModified: new Date().toISOString()
       };
+      
+      console.log('Manual save:', workflowToSave.name, {
+        nodes: nodes?.length || 0,
+        edges: edges?.length || 0,
+        viewport: workflowToSave.flow.viewport
+      });
+      
       workflowManagerService.saveWorkflow(workflowToSave);
+      setCurrentWorkflow(workflowToSave); // 最新状態で更新
       setHasUnsavedChanges(false);
+      
+      // workflows listも更新
+      const workflowsData = workflowManagerService.getWorkflows();
+      setWorkflows(Object.values(workflowsData));
     }
   }, [currentWorkflow, nodes, edges, viewport]);
 
   const handleWorkflowLoad = useCallback((workflowId) => {
     const workflow = workflowManagerService.getWorkflow(workflowId);
-    if (workflow && workflow.flow) {
+    if (workflow) {
+      console.log('Loading workflow:', workflow.name, {
+        nodes: workflow.flow?.nodes?.length || 0,
+        edges: workflow.flow?.edges?.length || 0,
+        viewport: workflow.flow?.viewport
+      });
+      
+      // Ensure flow structure exists
+      if (!workflow.flow) {
+        workflow.flow = { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } };
+      }
+      
       loadWorkflow(workflowId);
       setCurrentWorkflow(workflow);
       workflowManagerService.setCurrentWorkflowId(workflowId);
       setHasUnsavedChanges(false);
+      
+      // Update workflows list to ensure consistency
+      const workflowsData = workflowManagerService.getWorkflows();
+      setWorkflows(Object.values(workflowsData));
+    } else {
+      console.warn('Workflow not found:', workflowId);
     }
   }, [loadWorkflow]);
 
   const handleWorkflowCreate = useCallback((name) => {
+    console.log('Creating new workflow:', name);
+    
     const newWorkflow = workflowManagerService.createNewWorkflow(name);
     workflowManagerService.saveWorkflow(newWorkflow);
     workflowManagerService.setCurrentWorkflowId(newWorkflow.id);
+    
+    // Clear current editor state before loading new workflow
+    setNodes([]);
+    setEdges([]);
+    setViewport({ x: 0, y: 0, zoom: 1 });
+    
     loadWorkflow(newWorkflow.id);
     setCurrentWorkflow(newWorkflow);
     setHasUnsavedChanges(false);
@@ -190,7 +252,9 @@ const ReactFlowEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEd
     // Update workflows list
     const workflowsData = workflowManagerService.getWorkflows();
     setWorkflows(Object.values(workflowsData));
-  }, [loadWorkflow]);
+    
+    console.log('New workflow created:', newWorkflow.name, newWorkflow.id);
+  }, [loadWorkflow, setNodes, setEdges, setViewport]);
 
   const handleWorkflowRename = useCallback((newName) => {
     if (currentWorkflow) {
@@ -221,28 +285,68 @@ const ReactFlowEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEd
 
   const handleWorkflowExport = useCallback(() => {
     if (currentWorkflow) {
-      const dataStr = JSON.stringify(currentWorkflow, null, 2);
+      // Export with current flow state
+      const exportWorkflow = {
+        ...currentWorkflow,
+        flow: { 
+          nodes: nodes || [], 
+          edges: edges || [], 
+          viewport: viewport || { x: 0, y: 0, zoom: 1 }
+        },
+        lastModified: new Date().toISOString()
+      };
+      
+      console.log('Exporting workflow:', exportWorkflow.name, {
+        nodes: exportWorkflow.flow.nodes.length,
+        edges: exportWorkflow.flow.edges.length
+      });
+      
+      const dataStr = JSON.stringify(exportWorkflow, null, 2);
       const dataBlob = new Blob([dataStr], { type: 'application/json' });
       const url = URL.createObjectURL(dataBlob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${currentWorkflow.name || 'workflow'}.json`;
+      link.download = `${exportWorkflow.name || 'workflow'}.json`;
       link.click();
       URL.revokeObjectURL(url);
     }
-  }, [currentWorkflow]);
+  }, [currentWorkflow, nodes, edges, viewport]);
 
   const handleWorkflowImport = useCallback((file) => {
+    if (!file) {
+      console.warn('No file provided for import');
+      return;
+    }
+    
+    console.log('Importing workflow from file:', file.name);
+    
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const importedWorkflow = JSON.parse(e.target.result);
+        
+        // Validate workflow structure
+        if (!importedWorkflow.name || !importedWorkflow.flow) {
+          throw new Error('Invalid workflow format: missing name or flow');
+        }
+        
+        // Ensure flow structure is valid
+        if (!importedWorkflow.flow.nodes) importedWorkflow.flow.nodes = [];
+        if (!importedWorkflow.flow.edges) importedWorkflow.flow.edges = [];
+        if (!importedWorkflow.flow.viewport) importedWorkflow.flow.viewport = { x: 0, y: 0, zoom: 1 };
+        
         // Generate new ID to avoid conflicts
         const newWorkflow = {
           ...importedWorkflow,
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: `${importedWorkflow.name} (Imported)`,
           lastModified: new Date().toISOString()
         };
+        
+        console.log('Imported workflow:', newWorkflow.name, {
+          nodes: newWorkflow.flow.nodes.length,
+          edges: newWorkflow.flow.edges.length
+        });
         
         workflowManagerService.saveWorkflow(newWorkflow);
         workflowManagerService.setCurrentWorkflowId(newWorkflow.id);
@@ -253,27 +357,52 @@ const ReactFlowEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEd
         // Update workflows list
         const workflowsData = workflowManagerService.getWorkflows();
         setWorkflows(Object.values(workflowsData));
+        
       } catch (error) {
-        console.error('Failed to import workflow:', error);
+        console.error('Import failed:', error);
+        alert(`Failed to import workflow: ${error.message}`);
       }
+    };
+    reader.onerror = () => {
+      console.error('File read failed');
+      alert('Failed to read the file');
     };
     reader.readAsText(file);
   }, [loadWorkflow]);
 
   const handleWorkflowDuplicate = useCallback((workflow) => {
+    const targetWorkflow = workflow || currentWorkflow;
+    
+    if (!targetWorkflow) {
+      console.warn('No workflow to duplicate');
+      return;
+    }
+    
+    console.log('Duplicating workflow:', targetWorkflow.name);
+    
     const duplicatedWorkflow = {
-      ...workflow,
+      ...targetWorkflow,
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name: `${workflow.name} (Copy)`,
-      lastModified: new Date().toISOString()
+      name: `${targetWorkflow.name} (Copy)`,
+      lastModified: new Date().toISOString(),
+      flow: {
+        nodes: targetWorkflow.flow?.nodes || [],
+        edges: targetWorkflow.flow?.edges || [],
+        viewport: targetWorkflow.flow?.viewport || { x: 0, y: 0, zoom: 1 }
+      }
     };
+    
+    console.log('Duplicated workflow:', duplicatedWorkflow.name, {
+      nodes: duplicatedWorkflow.flow.nodes.length,
+      edges: duplicatedWorkflow.flow.edges.length
+    });
     
     workflowManagerService.saveWorkflow(duplicatedWorkflow);
     
     // Update workflows list
     const workflowsData = workflowManagerService.getWorkflows();
     setWorkflows(Object.values(workflowsData));
-  }, []);
+  }, [currentWorkflow]);
 
   // プロパティ変更をReactFlowストアに反映
   const handleEditingNodeChange = useCallback((updatedNode) => {
@@ -294,7 +423,7 @@ const ReactFlowEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEd
     onEditingNodeChange?.(updatedNode);
   }, [setNodes, onEditingNodeChange]);
 
-  const { handleRunAll } = useWorkflowExecution({
+  const { handleRunAll, handleStepForward, handleResetExecution } = useWorkflowExecution({
     nodes,
     connections: edges,
     nodeTypes: nodeDefinitions,
@@ -321,6 +450,63 @@ const ReactFlowEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEd
       });
     },
     [screenToFlowPosition, setContextMenu]
+  );
+
+  // ドラッグオーバー時の処理
+  const onDragOver = useCallback((event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  // ドロップ時の処理
+  const onDrop = useCallback(
+    (event) => {
+      event.preventDefault();
+      console.log('🎯 ドロップイベント発生');
+
+      const nodeType = event.dataTransfer.getData('application/reactflow');
+      console.log('📝 ドラッグされたノードタイプ:', nodeType);
+      
+      // ノードタイプが無効な場合は何もしない
+      if (typeof nodeType === 'undefined' || !nodeType || !nodeDefinitions[nodeType]) {
+        console.log('❌ 無効なノードタイプ:', nodeType, 'available:', Object.keys(nodeDefinitions));
+        return;
+      }
+
+      // ドロップ位置をReactFlow座標に変換
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+      console.log('📍 ドロップ位置:', position);
+
+      // ノード定義を取得
+      const nodeDefinition = nodeDefinitions[nodeType];
+      console.log('📋 ノード定義:', nodeDefinition);
+      
+      // 新しいノードを作成
+      const newNodeId = `${nodeType}-${Date.now()}`;
+      const newNode = {
+        id: newNodeId,
+        type: nodeType,
+        position,
+        data: {
+          label: nodeDefinition.displayName || nodeDefinition.name || nodeType,
+          ...nodeDefinition.defaultData
+        },
+      };
+
+      console.log('✨ Creating new node:', newNode);
+
+      // 現在のノード数を確認
+      const currentNodes = nodes;
+      console.log('📊 現在のノード数:', currentNodes.length);
+
+      // ノードをストアに追加（addNode関数を使用）
+      console.log('🔧 Calling addNode with:', newNode);
+      addNode(newNode);
+    },
+    [screenToFlowPosition, addNode, nodes]
   );
 
   // ノードクリック時の選択処理
@@ -364,8 +550,13 @@ const ReactFlowEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEd
         onImport={handleWorkflowImport}
         onDuplicate={handleWorkflowDuplicate}
         hasUnsavedChanges={hasUnsavedChanges}
+        // Execution controls
+        onRunAll={handleRunAll}
+        onStop={handleResetExecution}
+        onStepForward={handleStepForward}
+        isExecuting={executionState?.running}
       />
-      {console.log('ReactFlowコンポーネントをレンダリング中...')}
+      {console.log('🎨 ReactFlowコンポーネントをレンダリング中...')}
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -377,6 +568,8 @@ const ReactFlowEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEd
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
         onPaneContextMenu={onPaneContextMenu}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         fitView={false}
         fitViewOptions={{ padding: 0.2 }}
@@ -402,21 +595,11 @@ const ReactFlowEditor = ({ selectedNode, onSelectedNodeChange, editingNode, onEd
         <MiniMap />
       </ReactFlow>
       <ContextMenu />
-      <div className="absolute top-2 right-2 z-10 space-x-2">
-        <Button 
-          onClick={() => setShowDebugLog(true)} 
-          variant="outline"
-          size="sm"
-        >
-          Show Output
-        </Button>
-        <Button onClick={handleRunAll} className="bg-green-600 hover:bg-green-700 text-white">Run Workflow</Button>
-      </div>
       
       {/* 実行結果ウィンドウ */}
       <ExecutionOutputWindow 
-        isOpen={showDebugLog}
-        onClose={() => setShowDebugLog(false)}
+        isOpen={true}
+        onClose={() => {}} // 常に表示なのでクローズ機能を無効化
         executionResult={executionResult}
         debugLog={debugLog}
         executionState={executionState}

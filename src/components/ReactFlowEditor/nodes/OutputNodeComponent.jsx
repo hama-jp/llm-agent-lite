@@ -12,11 +12,12 @@ const OutputNodeComponent = ({ id, data }) => {
   const displayResult = contextResult || data.result || 'No result yet...';
   
   return (
-    <CustomNode data={data}>
+    <CustomNode data={data} id={id}>
       <Textarea
         value={displayResult}
         readOnly
-        className="nodrag bg-gray-50 text-gray-700"
+        className="nodrag bg-gray-50 text-gray-700 resize-both w-full"
+        style={{ resize: 'both', overflow: 'auto', minWidth: '200px', minHeight: '100px', width: '100%' }}
         placeholder="Execution result will appear here..."
         rows={4}
       />

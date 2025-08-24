@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Menu, Settings, MessageSquare, Workflow, Database, X } from 'lucide-react'
 import { Button } from '@/components/ui/button.jsx'
 import { useStore, selectSidebarOpen, useUIActions } from '../store/index.js'
+import NodePaletteContextStyle from './NodePaletteContextStyle.jsx'
 
 const NodePropertiesPanel = ({ editingNode, onEditingNodeChange }) => {
   if (!editingNode) return null;
@@ -196,8 +197,16 @@ const Layout = ({ children, currentView, onViewChange, editingNode, onEditingNod
         </nav>
 
         {currentView === 'workflow' && (
-          <div className="flex-1 overflow-y-auto border-t">
-            <NodePropertiesPanel editingNode={editingNode} onEditingNodeChange={onEditingNodeChange} />
+          <div className="flex-1 flex flex-col overflow-hidden border-t">
+            {editingNode ? (
+              <div className="flex-1 overflow-y-auto">
+                <NodePropertiesPanel editingNode={editingNode} onEditingNodeChange={onEditingNodeChange} />
+              </div>
+            ) : (
+              <div className="flex-1 overflow-hidden">
+                <NodePaletteContextStyle />
+              </div>
+            )}
           </div>
         )}
       </div>

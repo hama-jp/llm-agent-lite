@@ -18,7 +18,7 @@ const WhileNodeComponent = ({ id, data }) => {
         { name: 'output', id: 'output' },
         { name: 'loop', id: 'loop' }
       ]
-    }}>
+    }} id={id}>
       <div className="space-y-3">
         <div>
           <label className="text-xs text-gray-500 block mb-1">Loop Condition</label>

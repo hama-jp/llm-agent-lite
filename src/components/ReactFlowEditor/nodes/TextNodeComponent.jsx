@@ -8,7 +8,7 @@ const TextNodeComponent = ({ id, data }) => {
   };
 
   return (
-    <CustomNode data={data}>
+    <CustomNode data={data} id={id}>
       <div className="space-y-3">
         <div>
           <label className="text-xs text-gray-500 block mb-1">Text Content</label>

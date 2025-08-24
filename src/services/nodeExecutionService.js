@@ -181,31 +181,170 @@ class NodeExecutionService {
     }
   }
 
+  // 接続されていないノードを除外し、接続されたノードのみを返す
+  filterConnectedNodes(nodes, connections) {
+    const connectedNodeIds = new Set()
+    
+    // 接続の両端のノードを接続済みとしてマーク（ReactFlowのedge形式に対応）
+    connections.forEach(conn => {
+      if (conn.source && conn.target) {
+        connectedNodeIds.add(conn.source)
+        connectedNodeIds.add(conn.target)
+      }
+      // 旧形式の接続にも対応
+      if (conn.from?.nodeId && conn.to?.nodeId) {
+        connectedNodeIds.add(conn.from.nodeId)
+        connectedNodeIds.add(conn.to.nodeId)
+      }
+    })
+    
+    // 入力ノード（Input）は常に含める（起点として）
+    nodes.forEach(node => {
+      if (node.type === 'input') {
+        connectedNodeIds.add(node.id)
+      }
+    })
+    
+    const connectedNodes = nodes.filter(node => connectedNodeIds.has(node.id))
+    const isolatedNodes = nodes.filter(node => !connectedNodeIds.has(node.id))
+    
+    if (isolatedNodes.length > 0) {
+      this.addLog('warning', `🔌 接続されていないノードを実行対象から除外: ${isolatedNodes.map(n => n.data.label || n.id).join(', ')}`)
+    }
+    
+    this.addLog('info', `📊 ノード接続状況 - 接続済み: ${connectedNodes.length}, 孤立: ${isolatedNodes.length}`)
+    
+    return {
+      connectedNodes,
+      isolatedNodes
+    }
+  }
+
+  // 制御フローノードの依存関係を厳格にチェック
+  validateControlFlowDependencies(nodes, connections) {
+    const errors = []
+    
+    // ReactFlowとlegacy両方のconnection形式に対応するヘルパー関数
+    const getTargetConnections = (nodeId) => {
+      return connections.filter(conn => 
+        conn.target === nodeId || conn.to?.nodeId === nodeId
+      )
+    }
+    
+    nodes.forEach(node => {
+      switch (node.type) {
+        case 'if':
+          // ifノードは条件判定のための入力が必要
+          const ifInputs = getTargetConnections(node.id)
+          if (ifInputs.length === 0) {
+            errors.push(`🔀 IF条件ノード "${node.data.label || node.id}" には条件判定のための入力接続が必要です`)
+          }
+          break
+          
+        case 'while':
+          // whileノードは条件判定とループ本体の入力が必要
+          const whileInputs = getTargetConnections(node.id)
+          if (whileInputs.length === 0) {
+            errors.push(`🔄 WHILEループノード "${node.data.label || node.id}" には条件判定のための入力接続が必要です`)
+          }
+          break
+          
+        case 'text_combiner':
+          // text_combinerは複数の入力が必要
+          const combinerInputs = getTargetConnections(node.id)
+          if (combinerInputs.length < 2) {
+            errors.push(`📝 テキスト結合ノード "${node.data.label || node.id}" には少なくとも2つの入力接続が必要です (現在: ${combinerInputs.length})`)
+          }
+          break
+          
+        case 'llm':
+          // LLMノードは入力が必要（システムプロンプトまたは入力接続）
+          const llmInputs = getTargetConnections(node.id)
+          const hasSystemPrompt = node.data.systemPrompt && node.data.systemPrompt.trim()
+          if (llmInputs.length === 0 && !hasSystemPrompt) {
+            errors.push(`🤖 LLMノード "${node.data.label || node.id}" にはシステムプロンプトまたは入力接続が必要です`)
+          }
+          break
+          
+        case 'output':
+          // outputノードは最低1つの入力が必要
+          const outputInputs = getTargetConnections(node.id)
+          if (outputInputs.length === 0) {
+            errors.push(`📤 出力ノード "${node.data.label || node.id}" には入力接続が必要です`)
+          }
+          break
+      }
+    })
+    
+    return errors
+  }
+
   determineExecutionOrder(nodes, connections) {
     try {
+      // 接続されていないノードを除外
+      const { connectedNodes, isolatedNodes } = this.filterConnectedNodes(nodes, connections)
+      
+      if (connectedNodes.length === 0) {
+        throw new Error('実行可能なノードがありません。ノード間の接続を確認してください。')
+      }
+      
+      // 制御フローの依存関係を厳格にチェック
+      const validationErrors = this.validateControlFlowDependencies(connectedNodes, connections)
+      if (validationErrors.length > 0) {
+        this.addLog('error', `⚠️ ワークフロー依存関係チェックに失敗しました`)
+        validationErrors.forEach(error => {
+          this.addLog('error', error)
+        })
+        throw new Error(`ワークフローの依存関係エラー:\n${validationErrors.join('\n')}`)
+      }
+      
+      this.addLog('info', `✅ ワークフロー依存関係チェック完了 - すべての制御フローノードが正しく設定されています`)
+      
       const graph = new Map()
       const inDegree = new Map()
-      nodes.forEach(node => {
+      
+      // 接続されたノードのみでグラフを構築
+      connectedNodes.forEach(node => {
         graph.set(node.id, [])
         inDegree.set(node.id, 0)
       })
+      
       connections.forEach(conn => {
-        if (!graph.has(conn.from.nodeId) || !graph.has(conn.to.nodeId)) {
-          throw new Error(`無効な接続: ${conn.from.nodeId} -> ${conn.to.nodeId}`)
+        // ReactFlow形式の接続を処理
+        if (conn.source && conn.target && graph.has(conn.source) && graph.has(conn.target)) {
+          graph.get(conn.source).push(conn.target)
+          inDegree.set(conn.target, inDegree.get(conn.target) + 1)
         }
-        graph.get(conn.from.nodeId).push(conn.to.nodeId)
-        inDegree.set(conn.to.nodeId, inDegree.get(conn.to.nodeId) + 1)
+        // 旧形式の接続も処理
+        else if (conn.from?.nodeId && conn.to?.nodeId && graph.has(conn.from.nodeId) && graph.has(conn.to.nodeId)) {
+          graph.get(conn.from.nodeId).push(conn.to.nodeId)
+          inDegree.set(conn.to.nodeId, inDegree.get(conn.to.nodeId) + 1)
+        }
       })
+      
       const queue = []
       const result = []
+      
+      // 入力ノードを優先してキューに追加
+      const inputNodes = connectedNodes.filter(node => node.type === 'input')
+      inputNodes.forEach(node => {
+        if (inDegree.get(node.id) === 0) {
+          queue.push(node.id)
+        }
+      })
+      
+      // その他のノードで入力度が0のものを追加
       inDegree.forEach((degree, nodeId) => {
-        if (degree === 0) {
+        const node = connectedNodes.find(n => n.id === nodeId)
+        if (degree === 0 && node && node.type !== 'input' && !queue.includes(nodeId)) {
           queue.push(nodeId)
         }
       })
+      
       while (queue.length > 0) {
         const nodeId = queue.shift()
         result.push(nodeId)
+        
         graph.get(nodeId).forEach(neighbor => {
           inDegree.set(neighbor, inDegree.get(neighbor) - 1)
           if (inDegree.get(neighbor) === 0) {
@@ -213,10 +352,14 @@ class NodeExecutionService {
           }
         })
       }
-      if (result.length !== nodes.length) {
-        const unreachableNodes = nodes.filter(node => !result.includes(node.id))
+      
+      if (result.length !== connectedNodes.length) {
+        const unreachableNodes = connectedNodes.filter(node => !result.includes(node.id))
         throw new Error(`ワークフローに循環参照があります。到達不可能なノード: ${unreachableNodes.map(n => n.data.label || n.id).join(', ')}`)
       }
+      
+      this.addLog('info', `実行対象ノード数: ${result.length}/${nodes.length} (除外: ${isolatedNodes.length})`)
+      
       return result
     } catch (error) {
       this.addLog('error', `実行順序決定エラー: ${error.message}`)
@@ -298,22 +441,71 @@ class NodeExecutionService {
       // Continue to gather inputs with fallback keys instead of returning empty
     }
 
-    const inputConnections = connections.filter(conn => conn.to.nodeId === node.id);
+    // ReactFlow形式とlegacy形式両方の接続をサポート
+    const inputConnections = connections.filter(conn => {
+      // ReactFlow形式
+      if (conn.target === node.id) return true;
+      // Legacy形式
+      if (conn.to?.nodeId === node.id) return true;
+      return false;
+    });
 
-    for (const conn of inputConnections) {
-      const sourceOutput = this.executionContext[conn.from.nodeId];
-      const sourceNode = nodes.find(n => n.id === conn.from.nodeId);
+    // 接続をtargetHandle（ポートインデックス）順にソート
+    inputConnections.sort((a, b) => {
+      const aPort = parseInt(a.targetHandle || a.to?.portIndex || '0');
+      const bPort = parseInt(b.targetHandle || b.to?.portIndex || '0');
+      return aPort - bPort;
+    });
+
+    this.addLog('debug', `🔌 ${node.type}ノード "${node.data.label || node.id}" の入力接続数: ${inputConnections.length}`, node.id);
+    
+    // 詳細な接続情報をログ出力（完全なconnectionオブジェクトを表示）
+    inputConnections.forEach((conn, index) => {
+      this.addLog('debug', `接続 ${index + 1}: 完全なデータ`, node.id, conn);
+    });
+
+    for (let i = 0; i < inputConnections.length; i++) {
+      const conn = inputConnections[i];
+      
+      // ReactFlow形式とlegacy形式の両方をサポート
+      const sourceNodeId = conn.source || conn.from?.nodeId;
+      const targetPortIndex = parseInt(conn.targetHandle || conn.to?.portIndex || '0');
+      const sourcePortIndex = parseInt(conn.sourceHandle || conn.from?.portIndex || '0');
+      
+      const sourceOutput = this.executionContext[sourceNodeId];
+      const sourceNode = nodes.find(n => n.id === sourceNodeId);
+
+      this.addLog('debug', `処理中の接続 ${i + 1}:`, node.id, {
+        sourceNodeId,
+        targetPortIndex,
+        sourcePortIndex,
+        sourceOutput: sourceOutput,
+        sourceNodeFound: !!sourceNode,
+        rawTargetHandle: conn.targetHandle,
+        rawSourceHandle: conn.sourceHandle
+      });
 
       if (sourceOutput !== undefined && sourceNode) {
-        // Resolve input name with fallback to generic naming
-        let inputName;
-        if (nodeTypeDefinition?.inputs && nodeTypeDefinition.inputs[conn.to.portIndex]) {
-          inputName = nodeTypeDefinition.inputs[conn.to.portIndex];
-        } else if (conn.to?.name) {
-          inputName = conn.to.name;
+        // targetHandleが設定されていない場合は、接続の順番を使用
+        let calculatedPortIndex;
+        if (conn.targetHandle !== undefined && conn.targetHandle !== null && conn.targetHandle !== '') {
+          calculatedPortIndex = parseInt(conn.targetHandle);
         } else {
-          inputName = `input${conn.to.portIndex}`;
+          // targetHandleが設定されていない場合は、接続のインデックスを使用
+          calculatedPortIndex = i;
+          this.addLog('warn', `⚠️ targetHandleが設定されていないため、接続順序 ${i} を使用`, node.id);
         }
+        
+        // 順番通りに入力名を決定（input1, input2, input3...）
+        let inputName;
+        if (nodeTypeDefinition?.inputs && nodeTypeDefinition.inputs[calculatedPortIndex]) {
+          inputName = nodeTypeDefinition.inputs[calculatedPortIndex];
+        } else {
+          // ポートインデックスに基づいて入力名を決定
+          inputName = `input${calculatedPortIndex + 1}`;
+        }
+        
+        this.addLog('debug', `📥 入力マッピング: ${sourceNode.data?.label || sourceNodeId} → ${inputName} (calculated port: ${calculatedPortIndex})`, node.id);
 
         let valueToAssign;
 
@@ -322,38 +514,47 @@ class NodeExecutionService {
           // Port 0 ('true') or Port 1 ('false')
           this.addLog('debug', `If条件分岐から入力を取得中`, node.id, { 
             sourceOutput, 
-            portIndex: conn.from.portIndex,
+            sourcePortIndex,
             sourceNodeId: sourceNode.id 
           });
           
-          if (conn.from.portIndex === 0) {
+          if (sourcePortIndex === 0) {
             valueToAssign = sourceOutput.true;
-          } else if (conn.from.portIndex === 1) {
+          } else if (sourcePortIndex === 1) {
             valueToAssign = sourceOutput.false;
           }
           
           this.addLog('debug', `If条件分岐からの値`, node.id, { 
             valueToAssign, 
-            portIndex: conn.from.portIndex 
+            sourcePortIndex 
           });
         } else {
           valueToAssign = sourceOutput;
         }
 
         if (valueToAssign !== undefined) {
-          // 複数入力の場合、null値より正常値を優先
+          // 重複チェック：同じキーが既に存在する場合は警告
           if (inputs[inputName] !== undefined) {
-            this.addLog('warn', `入力 '${inputName}' が複数の接続から供給されています`, node.id);
-            // 既存の値がnullでなく、新しい値がnullの場合は上書きしない
-            if (inputs[inputName] !== null && valueToAssign === null) {
-              this.addLog('info', `null値による上書きをスキップしました`, node.id);
-              continue; // この入力の処理をスキップ
-            }
+            this.addLog('warn', `⚠️ 入力 ${inputName} が重複しています。上書きします。`, node.id, {
+              oldValue: inputs[inputName],
+              newValue: valueToAssign
+            });
           }
+          
+          // 順番通りに入力をマッピング
           inputs[inputName] = valueToAssign;
+          this.addLog('debug', `✅ 入力設定: ${inputName} = "${String(valueToAssign).substring(0, 50)}${String(valueToAssign).length > 50 ? '...' : ''}"`, node.id);
         }
+      } else {
+        this.addLog('warn', `⚠️ 接続データに問題があります`, node.id, {
+          sourceNodeId,
+          sourceOutputExists: sourceOutput !== undefined,
+          sourceNodeExists: !!sourceNode
+        });
       }
     }
+    
+    this.addLog('debug', `🔗 ${node.type}ノード "${node.data.label || node.id}" の最終入力:`, node.id, { inputs });
     
     // LLMノード専用の後処理：単一の入力を'input'キーで正規化
     if (node.type === 'llm') {
@@ -477,12 +678,26 @@ class NodeExecutionService {
     const maxIterations = node.data.maxIterations || 100
     const results = []
     let iteration = 0
+    
+    // 入力ポートから値を取得
+    const inputValue = inputs.input || ''
+    const loopValue = inputs.loop || null  // loop入力ポートの値を取得
+    
+    this.addLog('debug', `While Loop 開始`, node.id, {
+      inputValue,
+      loopValue,
+      conditionType,
+      maxIterations,
+      inputs: inputs
+    })
+    
     if (conditionType === 'variable') {
       const variable = node.data.variable || 'counter'
       if (this.variables[variable] === undefined) {
         this.variables[variable] = 0
       }
     }
+    
     while (iteration < maxIterations) {
       let shouldContinue = false
       if (conditionType === 'variable') {
@@ -493,8 +708,8 @@ class NodeExecutionService {
         shouldContinue = this.evaluateCondition(variableValue, operator, value)
       } else {
         const condition = node.data.condition || ''
-        const inputValue = inputs.input || ''
-        const prompt = `${condition}\n\n現在の状況: ${inputValue}\n反復回数: ${iteration}\n\n上記の条件に基づいて、処理を続行するかどうかを判断してください。続行する場合は「true」、停止する場合は「false」のみを回答してください。`
+        const currentInput = inputValue
+        const prompt = `${condition}\n\n現在の状況: ${currentInput}\n反復回数: ${iteration}\n${loopValue ? `ループ値: ${loopValue}\n` : ''}\n上記の条件に基づいて、処理を続行するかどうかを判断してください。続行する場合は「true」、停止する場合は「false」のみを回答してください。`
         try {
           const response = await llmService.sendMessage(prompt, { temperature: 0 })
           shouldContinue = response.toLowerCase().includes('true')
@@ -502,24 +717,38 @@ class NodeExecutionService {
           throw new Error(`While条件判断エラー: ${error.message}`)
         }
       }
+      
       if (!shouldContinue) {
+        this.addLog('debug', `While Loop 条件不満足で終了`, node.id, { iteration })
         break
       }
+      
       results.push({
         iteration: iteration,
-        input: inputs.input,
+        input: inputValue,
+        loop: loopValue,
         variables: { ...this.variables }
       })
+      
       if (conditionType === 'variable') {
         const variable = node.data.variable || 'counter'
         this.variables[variable] = (this.variables[variable] || 0) + 1
       }
+      
       iteration++
+      this.addLog('debug', `While Loop イテレーション ${iteration} 完了`, node.id)
     }
+    
+    this.addLog('info', `While Loop 完了: ${iteration} 回実行`, node.id, { 
+      iterations: iteration,
+      finalResults: results.length
+    })
+    
     return {
       iterations: iteration,
       results: results,
-      output: inputs.input
+      output: inputValue,
+      loop: loopValue  // loop値も出力に含める
     }
   }
 

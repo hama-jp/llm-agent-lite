@@ -9,6 +9,7 @@
         "position": { "x": 100, "y": 150 },
         "data": {
           "label": "Input",
+          "icon": "📥",
           "value": "Hello, World!",
           "inputType": "text",
           "width": 180,
@@ -21,6 +22,7 @@
         "position": { "x": 400, "y": 150 },
         "data": {
           "label": "Output",
+          "icon": "📤",
           "format": "text",
           "title": "Result",
           "result": "",
@@ -35,7 +37,9 @@
         "source": "input_1",
         "target": "output_1",
         "sourceHandle": "0",
-        "targetHandle": "0"
+        "targetHandle": "0",
+        "type": "custom",
+        "markerEnd": { "type": "arrow" }
       }
     ],
     "viewport": { "x": 0, "y": 0, "zoom": 1 }

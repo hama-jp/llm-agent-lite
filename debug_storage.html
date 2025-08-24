@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug LocalStorage</title>
+</head>
+<body>
+    <h1>LocalStorage Debug Tool</h1>
+    <button onclick="debugStorage()">Show Current Storage</button>
+    <button onclick="clearStorage()">Clear All Storage</button>
+    <button onclick="reloadPage()">Reload Page</button>
+    <pre id="output"></pre>
+    
+    <script>
+        function debugStorage() {
+            const output = document.getElementById('output');
+            const keys = [
+                'llm-agent-workflows',
+                'llm-agent-current-workflow-id',
+                'llm-agent-settings',
+                'react-flow-store'
+            ];
+            
+            let result = 'Current LocalStorage State:\n';
+            keys.forEach(key => {
+                const value = localStorage.getItem(key);
+                result += `${key}: ${value ? JSON.stringify(JSON.parse(value), null, 2) : 'null'}\n\n`;
+            });
+            
+            output.textContent = result;
+        }
+        
+        function clearStorage() {
+            localStorage.clear();
+            document.getElementById('output').textContent = 'Storage cleared!';
+        }
+        
+        function reloadPage() {
+            window.location.reload();
+        }
+    </script>
+</body>
+</html>

@@ -51,9 +51,29 @@ const useReactFlowStore = create(
       },
 
       addNode: (newNode) => {
+        console.log('🔧 addNode called with:', newNode);
+        const currentNodes = get().nodes;
+        console.log('📋 Current nodes in store:', currentNodes?.length || 0);
+        const nodes = Array.isArray(currentNodes) ? currentNodes : [];
+        const newNodes = [...nodes, newNode];
+        console.log('✨ Setting new nodes array, length:', newNodes.length);
+        set({ nodes: newNodes });
+        
+        // 設定後の状態を確認
+        const afterSet = get().nodes;
+        console.log('✅ After set - nodes in store:', afterSet?.length || 0);
+      },
+
+      updateNodeData: (nodeId, newData) => {
         const currentNodes = get().nodes;
         const nodes = Array.isArray(currentNodes) ? currentNodes : [];
-        set({ nodes: [...nodes, newNode] });
+        set({
+          nodes: nodes.map(node =>
+            node.id === nodeId
+              ? { ...node, data: { ...node.data, ...newData } }
+              : node
+          ),
+        });
       },
 
       setViewport: (viewport) => {
@@ -61,15 +81,28 @@ const useReactFlowStore = create(
       },
 
       loadWorkflow: (id) => {
+        console.log('🔄 loadWorkflow called with id:', id);
         const workflow = workflowManagerService.getWorkflow(id);
+        console.log('📂 Retrieved workflow:', workflow);
+        
         if (workflow && workflow.flow) {
           const { nodes, edges, viewport } = workflow.flow;
-          set({
+          console.log('📊 Loading workflow data - nodes:', nodes?.length || 0, 'edges:', edges?.length || 0);
+          console.log('📋 Node details:', nodes);
+          
+          const newState = {
             nodes: Array.isArray(nodes) ? nodes : [],
             edges: Array.isArray(edges) ? edges : [],
             viewport: viewport || { x: 0, y: 0, zoom: 1 },
-          });
+          };
+          
+          set(newState);
+          
+          // ストアの状態を確認
+          const currentState = get();
+          console.log('✅ Workflow loaded - Store state nodes:', currentState.nodes?.length || 0);
         } else {
+          console.log('⚠️ No valid workflow found, resetting to empty state');
           // ワークフローが見つからない場合は空の状態にリセット
           set({
             nodes: [],

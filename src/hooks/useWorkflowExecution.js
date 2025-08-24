@@ -94,6 +94,12 @@ const useWorkflowExecution = ({
     console.log('実行開始 - 現在のnodes:', nodes);
     if (nodes.length === 0) return alert('実行するノードがありません');
 
+    // 実行前に強制的に状態をリセット
+    if (nodeExecutionService.isRunning()) {
+      console.log('前回の実行が残っています。強制的にリセットします。');
+      nodeExecutionService.stopExecution();
+    }
+
     const preprocessedNodes = preprocessNodesForExecution();
     console.log('preprocessedNodes:', preprocessedNodes);
     
@@ -110,7 +116,9 @@ const useWorkflowExecution = ({
     const exec = await nodeExecutionService.startExecution(preprocessedNodes, convertedConnections, inputData, nodeTypes);
 
     setExecutor(exec);
-    setExecutionState({ running: true, currentNodeId: null, executedNodeIds: new Set() });
+    const initialState = { running: true, currentNodeId: null, executedNodeIds: new Set() };
+    console.log('Setting initial execution state:', initialState);
+    setExecutionState(initialState);
     setDebugLog([]);
     nodeExecutionService.setDebugMode(true);
 
@@ -119,7 +127,39 @@ const useWorkflowExecution = ({
       do {
         result = await exec.next();
         if (!result.done) {
-          setExecutionState(prev => ({ ...prev, currentNodeId: result.value.currentNodeId, executedNodeIds: new Set(prev.executedNodeIds).add(result.value.currentNodeId) }));
+          // まず実行中のノードを設定（実行前）
+          setExecutionState(prev => {
+            const newState = { 
+              running: true, 
+              currentNodeId: result.value.currentNodeId, 
+              executedNodeIds: new Set(prev.executedNodeIds)
+            };
+            console.log('=== EXECUTION STATE UPDATE ===');
+            console.log('Setting current executing node:', JSON.stringify(newState, (key, value) => 
+              value instanceof Set ? Array.from(value) : value, 2));
+            console.log('result:', JSON.stringify(result, null, 2));
+            console.log('result.value:', JSON.stringify(result.value, null, 2));
+            console.log('currentNodeId type:', typeof result.value?.currentNodeId, 'value:', result.value?.currentNodeId);
+            console.log('Available nodes:', nodes.map(n => ({ id: n.id, type: typeof n.id })));
+            console.log('========================');
+            return newState;
+          });
+          
+          // 各ノードの実行間に少し遅延を入れてアニメーションを見やすくする
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // 実行完了後に実行済みセットに追加
+          setExecutionState(prev => {
+            const newExecutedIds = new Set(prev.executedNodeIds);
+            newExecutedIds.add(result.value.currentNodeId);
+            const newState = { 
+              running: true, 
+              currentNodeId: null, // 実行完了後はnullに
+              executedNodeIds: newExecutedIds 
+            };
+            console.log('Node execution completed:', newState);
+            return newState;
+          });
         }
       } while (!result.done);
       const finalState = result.value;
@@ -132,6 +172,26 @@ const useWorkflowExecution = ({
             outputResults[node.data.label || `出力${node.id}`] = nodeExecutionService.executionContext[node.id];
           }
         });
+        
+        // 成功時のログを追加
+        const executionLog = nodeExecutionService.getExecutionLog();
+        const completionLog = {
+          timestamp: new Date().toISOString(),
+          level: 'success',
+          message: 'ワークフロー実行が正常に完了しました',
+          nodeId: null,
+          data: {
+            executedNodes: preprocessedNodes.length,
+            outputNodes: outputNodes.length,
+            outputs: outputResults,
+            variables: finalState.variables,
+            duration: new Date().getTime() - (executionLog[0]?.timestamp ? new Date(executionLog[0].timestamp).getTime() : new Date().getTime())
+          }
+        };
+        
+        // 完了ログをデバッグログに追加
+        const updatedLog = [...executionLog, completionLog];
+        setDebugLog(updatedLog);
         
         setExecutionResult({ 
           success: true, 
@@ -148,16 +208,63 @@ const useWorkflowExecution = ({
         });
       } else {
         console.log('実行失敗:', finalState.error);
+        
+        // エラー時のログを追加
+        const executionLog = nodeExecutionService.getExecutionLog();
+        const errorLog = {
+          timestamp: new Date().toISOString(),
+          level: 'error',
+          message: `ワークフロー実行が失敗しました: ${finalState.error?.message || 'Unknown error'}`,
+          nodeId: finalState.nodeId || null,
+          data: {
+            error: finalState.error?.stack || finalState.error?.message,
+            failedNodeId: finalState.nodeId
+          }
+        };
+        
+        // エラーログをデバッグログに追加
+        const updatedLog = [...executionLog, errorLog];
+        setDebugLog(updatedLog);
+        
         setExecutionResult({ success: false, error: finalState.error?.message || 'Unknown error' });
       }
     } catch (error) {
       console.error("Workflow execution failed:", error);
+      console.error("Error stack:", error.stack);
+      
+      // 例外エラー時のログを追加
+      const executionLog = nodeExecutionService.getExecutionLog();
+      const exceptionLog = {
+        timestamp: new Date().toISOString(),
+        level: 'error',
+        message: `ワークフロー実行中に例外が発生しました: ${error.message}`,
+        nodeId: null,
+        data: {
+          error: error.stack || error.message,
+          type: 'exception'
+        }
+      };
+      
+      // 例外ログをデバッグログに追加
+      const updatedLog = [...executionLog, exceptionLog];
+      setDebugLog(updatedLog);
+      
       setExecutionResult({ success: false, error: error.message });
+      
+      // エラー時にも状態をクリーンアップ
+      if (nodeExecutionService.isRunning()) {
+        nodeExecutionService.stopExecution();
+      }
     } finally {
       // processExecutionCompletion();
-      console.log('実行完了 - ノード状態をリセットしません');
-      setExecutionState({ running: false, currentNodeId: null, executedNodeIds: new Set() });
-      setExecutor(null);
+      console.log('実行完了 - 2秒後に状態をリセットします');
+      
+      // 実行完了状態を2秒間表示してからリセット
+      setTimeout(() => {
+        console.log('状態をリセット中...');
+        setExecutionState({ running: false, currentNodeId: null, executedNodeIds: new Set() });
+        setExecutor(null);
+      }, 2000);
     }
   }, [nodes, connections, nodeTypes, preprocessNodesForExecution, setNodes, setExecutor, setExecutionState, setDebugLog, setExecutionResult, processExecutionCompletion, convertConnectionsFormat]);
 
@@ -254,7 +361,15 @@ const useWorkflowExecution = ({
             : node
         ));
       } else {
-        setExecutionState(prev => ({ ...prev, currentNodeId: result.value.currentNodeId, executedNodeIds: new Set(prev.executedNodeIds).add(result.value.currentNodeId) }));
+        setExecutionState(prev => {
+          const newExecutedIds = new Set(prev.executedNodeIds);
+          newExecutedIds.add(result.value.currentNodeId);
+          return { 
+            ...prev, 
+            currentNodeId: result.value.currentNodeId, 
+            executedNodeIds: newExecutedIds 
+          };
+        });
       }
     } catch (error) {
       console.error("Step forward failed:", error);

@@ -10,7 +10,10 @@ import {
   X, 
   MoreHorizontal,
   Trash2,
-  Copy
+  Copy,
+  Play,
+  Square,
+  SkipForward
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,7 +47,12 @@ const WorkflowToolbar = ({
   onExport,
   onImport,
   onDuplicate,
-  hasUnsavedChanges = false
+  hasUnsavedChanges = false,
+  // Execution controls
+  onRunAll,
+  onStop,
+  onStepForward,
+  isExecuting = false
 }) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState('');
@@ -52,7 +60,7 @@ const WorkflowToolbar = ({
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const fileInputRef = useRef(null);
   const renameInputRef = useRef(null);
-  const [position, setPosition] = useState({ x: window.innerWidth - 600, y: 80 });
+  const [position, setPosition] = useState({ x: window.innerWidth - 800, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef(null);
 
@@ -223,7 +231,7 @@ const WorkflowToolbar = ({
 
       {/* Main Actions */}
       <div className="flex items-center gap-1 cursor-auto">
-        <Button size="sm" onClick={handleSave} disabled={!hasUnsavedChanges}>
+        <Button size="sm" variant="outline" onClick={handleSave} disabled={!hasUnsavedChanges}>
           <Save className="h-4 w-4 mr-1.5" />
           Save
         </Button>
@@ -307,44 +315,77 @@ const WorkflowToolbar = ({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* File Operations Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleDuplicate}>
+              <Copy className="h-4 w-4 mr-2" />
+              Duplicate Workflow
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleExport}>
+              <Download className="h-4 w-4 mr-2" />
+              Export to File
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleImportClick}>
+              <Upload className="h-4 w-4 mr-2" />
+              Import from File
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={() => handleDelete(currentWorkflow?.id)}
+              className="text-red-600"
+              disabled={workflows.length <= 1}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Workflow
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="w-px h-6 bg-gray-300" />
 
-      {/* More Actions */}
-      <div className="cursor-auto">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="outline">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={handleDuplicate}>
-            <Copy className="h-4 w-4 mr-2" />
-            Duplicate Workflow
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleExport}>
-            <Download className="h-4 w-4 mr-2" />
-            Export to File
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleImportClick}>
-            <Upload className="h-4 w-4 mr-2" />
-            Import from File
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem 
-            onClick={() => handleDelete(currentWorkflow?.id)}
-            className="text-red-600"
-            disabled={workflows.length <= 1}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete Workflow
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {/* Execution Controls */}
+      <div className="flex items-center gap-1 cursor-auto">
+        <Button 
+          size="sm" 
+          onClick={onRunAll}
+          disabled={isExecuting}
+          className="bg-green-600 hover:bg-green-700 text-white"
+        >
+          <Play className="h-4 w-4 mr-1.5" />
+          Run
+        </Button>
+        
+        <Button 
+          size="sm" 
+          variant="outline"
+          onClick={onStop}
+          disabled={!isExecuting}
+        >
+          <Square className="h-4 w-4 mr-1.5" />
+          Stop
+        </Button>
+        
+        <Button 
+          size="sm" 
+          variant="outline"
+          onClick={onStepForward}
+          disabled={isExecuting}
+        >
+          <SkipForward className="h-4 w-4 mr-1.5" />
+          Step
+        </Button>
+        
       </div>
+
 
       {/* Hidden file input */}
       <input

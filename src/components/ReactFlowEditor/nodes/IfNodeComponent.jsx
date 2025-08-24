@@ -17,7 +17,7 @@ const IfNodeComponent = ({ id, data }) => {
         { name: 'true', id: 'true' },
         { name: 'false', id: 'false' }
       ]
-    }}>
+    }} id={id}>
       <div className="space-y-3">
         <div>
           <label className="text-xs text-gray-500 block mb-1">Condition</label>

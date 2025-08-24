@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Minimize2, Maximize2, Terminal, CheckCircle, XCircle } from 'lucide-react';
+import { Minimize2, Maximize2, Terminal, CheckCircle, XCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,10 +14,11 @@ const ExecutionOutputWindow = ({
 }) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [position, setPosition] = useState({ x: 100, y: 100 });
+  const [size, setSize] = useState({ width: 800, height: 600 });
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-
-  if (!isOpen) return null;
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
   const handleMouseDown = (e) => {
     setIsDragging(true);
@@ -34,14 +35,34 @@ const ExecutionOutputWindow = ({
         y: e.clientY - dragStart.y
       });
     }
+    if (isResizing) {
+      const newWidth = Math.max(300, resizeStart.width + (e.clientX - resizeStart.x));
+      const newHeight = Math.max(200, resizeStart.height + (e.clientY - resizeStart.y));
+      setSize({
+        width: newWidth,
+        height: newHeight
+      });
+    }
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
+    setIsResizing(false);
+  };
+
+  const handleResizeStart = (e) => {
+    e.stopPropagation();
+    setIsResizing(true);
+    setResizeStart({
+      x: e.clientX,
+      y: e.clientY,
+      width: size.width,
+      height: size.height
+    });
   };
 
   React.useEffect(() => {
-    if (isDragging) {
+    if (isDragging || isResizing) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
       return () => {
@@ -49,7 +70,7 @@ const ExecutionOutputWindow = ({
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging, dragStart]);
+  }, [isDragging, isResizing, dragStart, resizeStart]);
 
   const formatTimestamp = (timestamp) => {
     return new Date(timestamp).toLocaleTimeString();
@@ -61,10 +82,31 @@ const ExecutionOutputWindow = ({
         return <CheckCircle className="h-4 w-4 text-green-500" />;
       case 'error':
         return <XCircle className="h-4 w-4 text-red-500" />;
-      default:
+      case 'warn':
+        return <Terminal className="h-4 w-4 text-yellow-500" />;
+      case 'info':
         return <Terminal className="h-4 w-4 text-blue-500" />;
+      default:
+        return <Terminal className="h-4 w-4 text-gray-500" />;
     }
   };
+
+  const getLogLevelColor = (level) => {
+    switch (level) {
+      case 'success':
+        return 'bg-green-50 border-l-4 border-green-200';
+      case 'error':
+        return 'bg-red-50 border-l-4 border-red-200';
+      case 'warn':
+        return 'bg-yellow-50 border-l-4 border-yellow-200';
+      case 'info':
+        return 'bg-blue-50 border-l-4 border-blue-200';
+      default:
+        return 'bg-gray-50 border-l-4 border-gray-200';
+    }
+  };
+
+  if (!isOpen) return null;
 
   return (
     <div
@@ -72,15 +114,15 @@ const ExecutionOutputWindow = ({
       style={{
         left: position.x,
         top: position.y,
-        width: isMinimized ? '300px' : '600px',
-        height: isMinimized ? '40px' : '400px',
+        width: isMinimized ? '300px' : `${size.width}px`,
+        height: isMinimized ? '40px' : `${size.height}px`,
         minWidth: '300px',
         minHeight: isMinimized ? '40px' : '200px'
       }}
     >
       {/* ヘッダー */}
       <div
-        className="flex items-center justify-between p-3 bg-gray-50 rounded-t-lg cursor-move border-b"
+        className="flex items-center justify-between p-3 bg-gray-50 rounded-t-lg cursor-move border-b select-none"
         onMouseDown={handleMouseDown}
       >
         <div className="flex items-center space-x-2">
@@ -99,14 +141,7 @@ const ExecutionOutputWindow = ({
           >
             {isMinimized ? <Maximize2 className="h-3 w-3" /> : <Minimize2 className="h-3 w-3" />}
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="h-6 w-6 p-0"
-          >
-            <X className="h-3 w-3" />
-          </Button>
+          {/* クローズボタンを削除 - 常に表示するため */}
         </div>
       </div>
 
@@ -114,7 +149,7 @@ const ExecutionOutputWindow = ({
       {!isMinimized && (
         <div className="h-full pb-12 overflow-hidden">
           <Tabs defaultValue="result" className="h-full flex flex-col">
-            <TabsList className="grid w-full grid-cols-2 m-2">
+            <TabsList className="grid w-full grid-cols-2 m-2 select-none">
               <TabsTrigger value="result">Result</TabsTrigger>
               <TabsTrigger value="logs">Debug Log ({debugLog?.length || 0})</TabsTrigger>
             </TabsList>
@@ -140,8 +175,8 @@ const ExecutionOutputWindow = ({
                           <h4 className="font-medium text-sm text-gray-700 mb-2">Outputs:</h4>
                           <div className="space-y-1">
                             {Object.entries(executionResult.outputs).map(([key, value]) => (
-                              <div key={key} className="bg-gray-50 p-2 rounded text-sm">
-                                <strong>{key}:</strong> {String(value)}
+                              <div key={key} className="bg-gray-50 p-2 rounded text-sm select-text">
+                                <strong className="select-text">{key}:</strong> <span className="select-text">{String(value)}</span>
                               </div>
                             ))}
                           </div>
@@ -153,8 +188,8 @@ const ExecutionOutputWindow = ({
                           <h4 className="font-medium text-sm text-gray-700 mb-2">Variables:</h4>
                           <div className="space-y-1">
                             {Object.entries(executionResult.variables).map(([key, value]) => (
-                              <div key={key} className="bg-blue-50 p-2 rounded text-sm">
-                                <strong>{key}:</strong> {String(value)}
+                              <div key={key} className="bg-blue-50 p-2 rounded text-sm select-text">
+                                <strong className="select-text">{key}:</strong> <span className="select-text">{String(value)}</span>
                               </div>
                             ))}
                           </div>
@@ -163,7 +198,7 @@ const ExecutionOutputWindow = ({
                     </div>
                   ) : (
                     <div className="bg-red-50 p-3 rounded">
-                      <p className="text-red-700 text-sm">{executionResult.error}</p>
+                      <p className="text-red-700 text-sm select-text">{executionResult.error}</p>
                     </div>
                   )}
                 </div>
@@ -177,22 +212,30 @@ const ExecutionOutputWindow = ({
             
             <TabsContent value="logs" className="flex-1 p-3 overflow-auto">
               {debugLog && debugLog.length > 0 ? (
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {debugLog.map((log, index) => (
-                    <div key={index} className="flex items-start space-x-2 text-xs p-2 rounded bg-gray-50">
+                    <div key={index} className={`flex items-start space-x-3 text-xs p-3 rounded ${getLogLevelColor(log.level)}`}>
                       {getLogLevelIcon(log.level)}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-gray-500">{formatTimestamp(log.timestamp)}</span>
+                      <div className="flex-1 min-w-0 select-text">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="text-gray-600 font-mono select-text">{formatTimestamp(log.timestamp)}</span>
+                          <Badge variant="outline" className={`text-xs select-text ${log.level === 'success' ? 'text-green-700' : log.level === 'error' ? 'text-red-700' : 'text-gray-700'}`}>
+                            {log.level.toUpperCase()}
+                          </Badge>
                           {log.nodeId && (
-                            <Badge variant="outline" className="text-xs">{log.nodeId}</Badge>
+                            <Badge variant="secondary" className="text-xs select-text">{log.nodeId}</Badge>
                           )}
                         </div>
-                        <p className="mt-1 break-words">{log.message}</p>
+                        <p className="mt-1 break-words font-medium select-text">{log.message}</p>
                         {log.data && (
-                          <pre className="mt-1 text-xs bg-gray-100 p-1 rounded overflow-x-auto">
-                            {JSON.stringify(log.data, null, 2)}
-                          </pre>
+                          <details className="mt-2">
+                            <summary className="cursor-pointer text-gray-600 hover:text-gray-800 select-text">
+                              Details {log.data.duration ? `(${Math.round(log.data.duration)}ms)` : ''}
+                            </summary>
+                            <pre className="mt-1 text-xs bg-white/70 p-2 rounded border overflow-x-auto select-text font-mono">
+                              {JSON.stringify(log.data, null, 2)}
+                            </pre>
+                          </details>
                         )}
                       </div>
                     </div>
@@ -206,6 +249,19 @@ const ExecutionOutputWindow = ({
               )}
             </TabsContent>
           </Tabs>
+        </div>
+      )}
+      
+      {/* リサイズハンドル */}
+      {!isMinimized && (
+        <div
+          className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize select-none"
+          onMouseDown={handleResizeStart}
+        >
+          <div className="absolute bottom-1 right-1 w-3 h-3">
+            <div className="absolute bottom-0 right-0 w-1 h-3 bg-gray-400 rounded-full"></div>
+            <div className="absolute bottom-0 right-1 w-3 h-1 bg-gray-400 rounded-full"></div>
+          </div>
         </div>
       )}
     </div>

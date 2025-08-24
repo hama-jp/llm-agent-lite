@@ -8,18 +8,38 @@ import { createNodeDefinition } from './types.js';
  * @returns {Promise<string>} 結合されたテキスト
  */
 async function executeTextCombinerNode(node, inputs, context) {
+  // デバッグ用の詳細ログ
+  context.addLog('debug', '🔗 Text Combiner 実行開始', node.id, { 
+    receivedInputs: inputs,
+    inputKeys: Object.keys(inputs),
+    inputValues: Object.values(inputs)
+  });
+
   const orderedInputNames = ['input1', 'input2', 'input3', 'input4'];
   let combinedText = '';
 
-  // 単純に順番に文字列を結合
+  // 順番に文字列を結合
   for (const inputName of orderedInputNames) {
     const inputValue = inputs[inputName];
+    context.addLog('debug', `処理中: ${inputName}`, node.id, { 
+      inputValue, 
+      isDefined: inputValue !== undefined,
+      isNull: inputValue === null,
+      type: typeof inputValue
+    });
+    
     if (inputValue !== undefined && inputValue !== null) {
-      combinedText += String(inputValue);
+      const stringValue = String(inputValue);
+      combinedText += stringValue;
+      context.addLog('debug', `追加: "${stringValue}" → 現在の結果: "${combinedText}"`, node.id);
     }
   }
 
-  context.addLog('info', `Text combined`, node.id, { result: combinedText });
+  context.addLog('info', `Text combined`, node.id, { 
+    result: combinedText,
+    finalLength: combinedText.length,
+    processedInputs: Object.keys(inputs).length
+  });
   return combinedText;
 }
 

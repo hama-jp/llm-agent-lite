@@ -43,13 +43,6 @@ const createUISlice = (set) => ({
     'ui/setContextMenu'
   ),
 
-  // デバッグログ表示
-  showDebugLog: false,
-  setShowDebugLog: (show) => set(
-    () => ({ showDebugLog: show }),
-    false,
-    'ui/setShowDebugLog'
-  ),
 
   // UI状態のリセット
   resetUI: () => set(
@@ -58,8 +51,7 @@ const createUISlice = (set) => ({
       sidebarOpen: true,
       selectedNode: null,
       editingNode: null,
-      contextMenu: null,
-      showDebugLog: false
+      contextMenu: null
     }),
     false,
     'ui/reset'
@@ -91,7 +83,6 @@ export const selectSidebarOpen = (state) => state.sidebarOpen
 export const selectSelectedNode = (state) => state.selectedNode
 export const selectEditingNode = (state) => state.editingNode
 export const selectContextMenu = (state) => state.contextMenu
-export const selectShowDebugLog = (state) => state.showDebugLog
 
 // アクション（型安全性のため）
 export const useUIActions = () => {
@@ -102,7 +93,6 @@ export const useUIActions = () => {
     setSelectedNode: store.setSelectedNode,
     setEditingNode: store.setEditingNode,
     setContextMenu: store.setContextMenu,
-    setShowDebugLog: store.setShowDebugLog,
     resetUI: store.resetUI
   }
 }

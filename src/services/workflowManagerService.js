@@ -53,9 +53,10 @@ class WorkflowManagerService {
           id: generateId(),
           lastModified: new Date().toISOString()
         };
+        console.log('💾 Saving sample workflow:', workflowWithNewId.name, 'nodes:', workflowWithNewId.flow?.nodes?.length || 0);
         this.saveWorkflow(workflowWithNewId);
         loadedWorkflows.push(workflowWithNewId);
-        console.log(`Imported sample workflow "${workflow.name}"`);
+        console.log(`✅ Imported sample workflow "${workflow.name}"`);
       }
     }
 

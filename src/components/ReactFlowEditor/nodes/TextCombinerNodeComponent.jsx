@@ -15,7 +15,7 @@ const TextCombinerNodeComponent = ({ id, data }) => {
       outputs: [
         { name: 'output', id: 'output' }
       ]
-    }}>
+    }} id={id}>
       <div className="text-xs text-gray-500 text-center py-2">
         Combines 4 text inputs
       </div>

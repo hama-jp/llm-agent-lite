@@ -24,7 +24,7 @@ const VariableSetNodeComponent = ({ id, data }) => {
       outputs: [
         { name: 'output', id: 'output' }
       ]
-    }}>
+    }} id={id}>
       <div className="space-y-3">
         <div>
           <label className="text-xs text-gray-500 block mb-1">Variable Name</label>
