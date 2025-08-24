@@ -13,8 +13,16 @@ const ExecutionOutputWindow = ({
   executionState 
 }) => {
   const [isMinimized, setIsMinimized] = useState(false);
-  const [position, setPosition] = useState({ x: 100, y: 100 });
-  const [size, setSize] = useState({ width: 800, height: 600 });
+  // 右端に縦長で配置するための初期設定
+  const [position, setPosition] = useState(() => {
+    const rightMargin = 20; // 右端からの余白
+    const topMargin = 80;   // 上部からの余白（ツールバーを避ける）
+    return {
+      x: window.innerWidth - 350 - rightMargin, // 350pxの幅 + 余白
+      y: topMargin
+    };
+  });
+  const [size, setSize] = useState({ width: 350, height: 700 }); // 縦長の初期サイズ
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -36,8 +44,9 @@ const ExecutionOutputWindow = ({
       });
     }
     if (isResizing) {
-      const newWidth = Math.max(300, resizeStart.width + (e.clientX - resizeStart.x));
-      const newHeight = Math.max(200, resizeStart.height + (e.clientY - resizeStart.y));
+      const newWidth = Math.max(300, Math.min(500, resizeStart.width + (e.clientX - resizeStart.x))); // 300-500pxに制限
+      const maxHeight = window.innerHeight - 100; // ビューポート高さより小さく
+      const newHeight = Math.max(200, Math.min(maxHeight, resizeStart.height + (e.clientY - resizeStart.y)));
       setSize({
         width: newWidth,
         height: newHeight
@@ -71,6 +80,21 @@ const ExecutionOutputWindow = ({
       };
     }
   }, [isDragging, isResizing, dragStart, resizeStart]);
+
+  // ウィンドウサイズ変更時に位置を調整
+  React.useEffect(() => {
+    const handleResize = () => {
+      const rightMargin = 20;
+      const newX = window.innerWidth - size.width - rightMargin;
+      setPosition(prevPos => ({
+        ...prevPos,
+        x: Math.max(20, newX) // 左端にいかないように制限
+      }));
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [size.width]);
 
   const formatTimestamp = (timestamp) => {
     return new Date(timestamp).toLocaleTimeString();
@@ -117,7 +141,9 @@ const ExecutionOutputWindow = ({
         width: isMinimized ? '300px' : `${size.width}px`,
         height: isMinimized ? '40px' : `${size.height}px`,
         minWidth: '300px',
-        minHeight: isMinimized ? '40px' : '200px'
+        maxWidth: '500px',   // 最大幅を制限して縦長を保つ
+        minHeight: isMinimized ? '40px' : '200px',
+        maxHeight: 'calc(100vh - 100px)' // ビューポートの高さを越えないように制限
       }}
     >
       {/* ヘッダー */}

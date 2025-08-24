@@ -1,0 +1,92 @@
+{
+  "id": "sample-04-ai-writing-assistant",
+  "name": "04 - AI Writing Assistant",
+  "flow": {
+    "nodes": [
+      {
+        "id": "input_topic",
+        "type": "input",
+        "position": { "x": 50, "y": 100 },
+        "data": {
+          "label": "Article Topic",
+          "value": "The Future of Web Development",
+          "inputType": "text",
+          "width": 200,
+          "height": 150
+        }
+      },
+      {
+        "id": "input_keywords",
+        "type": "input",
+        "position": { "x": 50, "y": 300 },
+        "data": {
+          "label": "Keywords",
+          "value": "React, TypeScript, AI, automation",
+          "inputType": "text",
+          "width": 200,
+          "height": 150
+        }
+      },
+      {
+        "id": "combiner_outline",
+        "type": "text_combiner",
+        "position": { "x": 320, "y": 200 },
+        "data": {
+          "label": "Create Outline Request",
+          "separator": "\n\nKeywords: ",
+          "width": 220,
+          "height": 180
+        }
+      },
+      {
+        "id": "llm_outline",
+        "type": "llm",
+        "position": { "x": 600, "y": 200 },
+        "data": {
+          "label": "Generate Outline",
+          "systemPrompt": "You are a professional content writer. Create detailed article outlines with engaging titles, clear structure, and comprehensive sections.",
+          "prompt": "Create a detailed article outline for the following topic and keywords:",
+          "temperature": 0.7,
+          "model": "gpt-5-nano",
+          "width": 320,
+          "height": 240
+        }
+      },
+      {
+        "id": "llm_content",
+        "type": "llm",
+        "position": { "x": 980, "y": 200 },
+        "data": {
+          "label": "Write Article",
+          "systemPrompt": "You are an expert technical writer. Transform the provided outline into a well-structured, informative article. Use clear explanations, practical examples, and engaging language suitable for developers.",
+          "prompt": "Based on this outline, write a comprehensive article:",
+          "temperature": 0.8,
+          "model": "gpt-5-nano",
+          "width": 320,
+          "height": 240
+        }
+      },
+      {
+        "id": "output_article",
+        "type": "output",
+        "position": { "x": 1350, "y": 225 },
+        "data": {
+          "label": "Final Article",
+          "format": "text",
+          "title": "Generated Article",
+          "width": 250,
+          "height": 180
+        }
+      }
+    ],
+    "edges": [
+      { "id": "conn_1", "source": "input_topic", "target": "combiner_outline", "sourceHandle": "0", "targetHandle": "0" },
+      { "id": "conn_2", "source": "input_keywords", "target": "combiner_outline", "sourceHandle": "0", "targetHandle": "1" },
+      { "id": "conn_3", "source": "combiner_outline", "target": "llm_outline", "sourceHandle": "0", "targetHandle": "0" },
+      { "id": "conn_4", "source": "llm_outline", "target": "llm_content", "sourceHandle": "0", "targetHandle": "0" },
+      { "id": "conn_5", "source": "llm_content", "target": "output_article", "sourceHandle": "0", "targetHandle": "0" }
+    ],
+    "viewport": { "x": 0, "y": 0, "zoom": 0.8 }
+  },
+  "lastModified": "2024-12-29T00:00:00.000Z"
+}

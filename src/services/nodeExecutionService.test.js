@@ -40,6 +40,26 @@ vi.mock('./logService', () => {
   };
 })
 
+// Mock localStorage
+const mockLocalStorage = {
+  store: new Map(),
+  getItem: vi.fn((key) => mockLocalStorage.store.get(key) || null),
+  setItem: vi.fn((key, value) => {
+    mockLocalStorage.store.set(key, value);
+  }),
+  removeItem: vi.fn((key) => {
+    mockLocalStorage.store.delete(key);
+  }),
+  clear: vi.fn(() => {
+    mockLocalStorage.store.clear();
+  })
+};
+
+Object.defineProperty(global, 'localStorage', {
+  value: mockLocalStorage,
+  writable: true
+});
+
 describe('NodeExecutionService', () => {
   beforeEach(() => {
     // Reset mocks before each test
@@ -60,9 +80,9 @@ describe('NodeExecutionService', () => {
       { id: 'llm_1', type: 'llm', data: { provider: 'openai', model: 'gpt-5-nano' } }, // No prompt template
       { id: 'output_1', type: 'output', data: {} },
     ]
-    const connections = [
-      { id: 'conn_1', from: { nodeId: 'input_1', portIndex: 0 }, to: { nodeId: 'llm_1', portIndex: 0 } },
-      { id: 'conn_2', from: { nodeId: 'llm_1', portIndex: 0 }, to: { nodeId: 'output_1', portIndex: 0 } },
+    const edges = [
+      { id: 'conn_1', source: 'input_1', target: 'llm_1', sourceHandle: '0', targetHandle: '0' },
+      { id: 'conn_2', source: 'llm_1', target: 'output_1', sourceHandle: '0', targetHandle: '0' },
     ]
     const inputData = { 'input_1': 'Hello World' }
 
@@ -71,7 +91,7 @@ describe('NodeExecutionService', () => {
     llmService.sendMessage.mockResolvedValue(mockLLMResponse)
 
     // 3. Start the execution
-    const executor = await nodeExecutionService.startExecution(nodes, connections, inputData, nodeTypes)
+    const executor = await nodeExecutionService.startExecution(nodes, edges, inputData, nodeTypes)
     const executionSteps = []
 
     // 4. Run the workflow step by step and record state
@@ -101,7 +121,14 @@ describe('NodeExecutionService', () => {
     // 7. Check if LLM service was called correctly
     expect(llmService.sendMessage).toHaveBeenCalledTimes(1)
     // The prompt is now just the input value
-    expect(llmService.sendMessage).toHaveBeenCalledWith('Hello World', null, expect.any(Object), expect.any(Object))
+    expect(llmService.sendMessage).toHaveBeenCalledWith('Hello World', null, expect.objectContaining({
+      provider: 'openai',
+      model: 'gpt-5-nano',
+      temperature: 0.7,
+      maxTokens: 100,
+      apiKey: 'test-key',
+      baseUrl: ''
+    }))
   })
 
   it('should use max_completion_tokens for gpt-5 models', async () => {
@@ -111,11 +138,11 @@ describe('NodeExecutionService', () => {
       { id: 'input_1', type: 'input', data: { value: 'test' } },
       { id: 'llm_1', type: 'llm', data: { provider: 'openai', model: 'gpt-5' } } // Use a gpt-5 model
     ];
-    const connections = [
-      { id: 'conn_1', from: { nodeId: 'input_1', portIndex: 0 }, to: { nodeId: 'llm_1', portIndex: 0 } },
+    const edges = [
+      { id: 'conn_1', source: 'input_1', target: 'llm_1', sourceHandle: '0', targetHandle: '0' },
     ];
 
-    const executor = await nodeExecutionService.startExecution(nodes, connections, {}, nodeTypes);
+    const executor = await nodeExecutionService.startExecution(nodes, edges, {}, nodeTypes);
 
     // Run through the workflow
     await executor.next(); // input_1
@@ -133,12 +160,12 @@ describe('NodeExecutionService', () => {
       { id: 'input_file_1', type: 'input', data: { inputType: 'file', fileContent: fileContent, fileName: 'test.txt' } },
       { id: 'output_1', type: 'output', data: {} },
     ];
-    const connections = [
-      { id: 'conn_1', from: { nodeId: 'input_file_1', portIndex: 0 }, to: { nodeId: 'output_1', portIndex: 0 } },
+    const edges = [
+      { id: 'conn_1', source: 'input_file_1', target: 'output_1', sourceHandle: '0', targetHandle: '0' },
     ];
 
     // 2. Start and run the execution
-    const executor = await nodeExecutionService.startExecution(nodes, connections, {}, nodeTypes);
+    const executor = await nodeExecutionService.startExecution(nodes, edges, {}, nodeTypes);
     let result = await executor.next();
     while (!result.done) {
       result = await executor.next();

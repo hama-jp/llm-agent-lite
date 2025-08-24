@@ -21,8 +21,8 @@ pnpm --version
 
 ```bash
 # 1. リポジトリをクローン
-git clone https://github.com/hama-jp/llm-agent-lite.git
-cd llm-agent-lite
+git clone https://github.com/hama-jp/flomoji.git
+cd flomoji
 
 # 2. 依存関係をインストール
 pnpm install
@@ -36,11 +36,11 @@ pnpm run dev
 ## 🧭 プロジェクト構造の理解
 
 ```
-llm-agent-lite/
+flomoji/
 ├── src/
-│   ├── components/     # UIコンポーネント
+│   ├── components/     # UIコンポーネント (React Flow対応)
 │   ├── services/       # ビジネスロジック
-│   ├── store/          # 状態管理
+│   ├── store/          # 状態管理 (Zustand)
 │   └── hooks/          # カスタムフック
 ├── docs/               # ドキュメント
 └── tests/              # テスト
@@ -49,6 +49,11 @@ llm-agent-lite/
 ## 💡 最初の変更を加える
 
 ### 例：シンプルな機能追加
+
+**技術スタック情報**:
+- React Flow v12 (`@xyflow/react`) を使用したワークフローエディター
+- Zustand でノードとエッジの状態管理
+- カスタムノードとエッジコンポーネント
 
 1. **新しいユーティリティ関数を追加**
 
@@ -103,7 +108,7 @@ pnpm run preview
 
 ## 🎨 最初のノードを作成
 
-最もシンプルなノードの例：
+最もシンプルなノードの例 (React Flow対応)：
 
 ```javascript
 // src/components/nodes/HelloWorldNode.js
@@ -125,6 +130,8 @@ export const HelloWorldNode = createNodeDefinition(
 )
 
 export default HelloWorldNode
+
+// ノードをindex.jsに追加した後、React Flowエディターで使用可能になります
 ```
 
 ## 🐛 デバッグのヒント
@@ -160,14 +167,16 @@ export default HelloWorldNode
 
 1. **エントリーポイント**: `src/main.jsx`
 2. **メインレイアウト**: `src/components/Layout.jsx`
-3. **ノード実行エンジン**: `src/services/nodeExecutionService.js`
-4. **状態管理**: `src/store/store.js`
+3. **ワークフローエディター**: `src/components/WorkflowView.jsx` (React Flow)
+4. **ノード実行エンジン**: `src/services/nodeExecutionService.js`
+5. **状態管理**: `src/store/` (Zustand store)
 
 ### コードの流れを理解する
 
 ```mermaid
 graph LR
-    User[ユーザー操作] --> Component[Reactコンポーネント]
+    User[ユーザー操作] --> ReactFlow[React Flowエディター]
+    ReactFlow --> Component[Reactコンポーネント]
     Component --> Store[Zustand Store]
     Store --> Service[サービス層]
     Service --> API[外部API/Storage]

@@ -8,22 +8,99 @@
   padding: 0;
 }
 
-/* 選択時とフォーカス時の輪郭を完全に削除 */
+/* 選択時のスタイル設定 */
 .react-flow {
   --xy-node-boxshadow-selected-default: none;
   --xy-node-border-default: none;
 }
 
-.react-flow__node.selected,
+/* ノード選択時の青系ハイライト - box-shadowで角丸対応 */
+.react-flow__node.selected {
+  outline: none !important;
+  z-index: 10;
+  /* React Flow内部のCustomNode divに角丸ボーダーを適用 */
+}
+
+.react-flow__node.selected > div {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.6), 0 0 12px rgba(59, 130, 246, 0.3) !important;
+  border-radius: 0.5rem !important; /* rounded-lg相当 */
+  animation: selectedPulse 2s ease-in-out infinite;
+}
+
+.react-flow__node:focus {
+  outline: none !important;
+}
+
+/* 選択時の軽いパルスアニメーション */
+@keyframes selectedPulse {
+  0%, 100% { 
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.6), 0 0 12px rgba(59, 130, 246, 0.3) !important;
+  }
+  50% { 
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.8), 0 0 20px rgba(59, 130, 246, 0.4) !important;
+  }
+}
+
+/* エッジ選択時のパルスアニメーション */
+@keyframes selectedEdgePulse {
+  0%, 100% { 
+    filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.6));
+    stroke-width: 4;
+  }
+  50% { 
+    filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.8));
+    stroke-width: 5;
+  }
+}
+
 .react-flow__node:focus {
   box-shadow: none !important;
   outline: none !important;
 }
 
-/* ハンドルの接続状態フィードバック */
+/* ノードホバー時の軽いハイライト - 角丸対応 */
+.react-flow__node:hover:not(.selected) > div {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
+  transition: box-shadow 0.2s ease;
+}
+
+/* マルチ選択時のスタイル */
+.react-flow__nodesselection-rect {
+  background: rgba(59, 130, 246, 0.08);
+  border: 2px solid rgba(59, 130, 246, 0.4);
+}
+
+/* コントロールボタンのカスタマイズ */
+.react-flow__controls-button {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  transition: all 0.2s ease;
+}
+
+.react-flow__controls-button:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+/* ミニマップのカスタマイズ */
+.react-flow__minimap {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #e5e7eb;
+}
+
+.react-flow__minimap-mask {
+  fill: rgba(59, 130, 246, 0.2);
+  stroke: #3b82f6;
+  stroke-width: 2;
+}
+
+/* ハンドルの接続状態フィードバック - 青系に変更 */
 .react-flow__handle.connecting {
-  background: #ff6b35 !important;
+  background: #3b82f6 !important;
   transform: scale(1.2);
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
 }
 
 .react-flow__handle.valid {
@@ -38,11 +115,34 @@
 .react-flow__edge path {
   stroke: #b1b1b7;
   stroke-width: 2;
+  transition: all 0.2s ease;
+}
+
+/* カスタムマーカーの色調整 */
+.react-flow__edge-circle {
+  stroke: #b1b1b7;
+  stroke-opacity: 0.75;
+}
+
+.react-flow__edge.selected .react-flow__edge-circle {
+  stroke: #3b82f6;
+  stroke-opacity: 1;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.6));
 }
 
 .react-flow__edge.selected path {
-  stroke: #ff6b35;
-  stroke-width: 3;
+  stroke: #3b82f6;
+  stroke-width: 4;
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.6));
+  animation: selectedEdgePulse 2s ease-in-out infinite;
+}
+
+/* エッジホバー時の効果 */
+.react-flow__edge:hover:not(.selected) path {
+  stroke: #6b7280;
+  stroke-width: 2.5;
+  transition: all 0.2s ease;
 }
 
 /* 実行中のフローアニメーション */

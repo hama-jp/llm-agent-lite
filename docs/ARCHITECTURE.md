@@ -60,7 +60,7 @@ graph TB
 {
   // ワークフロー関連
   nodes: [],           // ワークフローノード
-  connections: [],     // ノード間の接続
+  edges: [],           // ノード間の接続 (React Flow形式)
   currentWorkflow: {}, // 現在のワークフロー
   
   // UI状態
@@ -140,15 +140,15 @@ class LLMService {
 
 ```javascript
 class NodeExecutionService {
-  static async startExecution(nodes, connections, inputs, nodeTypes) {
-    // 1. トポロジカルソート
-    const sortedNodes = this.topologicalSort(nodes, connections)
+  static async startExecution(nodes, edges, inputs, nodeTypes) {
+    // 1. トポロジカルソート (React Flow edgesを使用)
+    const sortedNodes = this.topologicalSort(nodes, edges)
     
     // 2. 実行ジェネレータの作成
-    return this.createExecutor(sortedNodes, connections, inputs)
+    return this.createExecutor(sortedNodes, edges, inputs)
   }
   
-  static *createExecutor(sortedNodes, connections, inputs) {
+  static *createExecutor(sortedNodes, edges, inputs) {
     // ステップ実行をサポート
     for (const node of sortedNodes) {
       yield { currentNodeId: node.id }
@@ -234,17 +234,23 @@ App
 }
 ```
 
-### 接続システム
+### 接続システム (React Flow)
 
 ```javascript
 {
   id: 'connection-id',
-  source: 'node-id-1',
-  target: 'node-id-2',
-  sourcePort: 'output',
-  targetPort: 'input'
+  source: 'node-id-1',        // ソースノードID
+  target: 'node-id-2',        // ターゲットノードID
+  sourceHandle: '0',          // ソースポートのインデックス
+  targetHandle: '0'           // ターゲットポートのインデックス
 }
 ```
+
+**React Flow の利点**:
+- 高性能なワークフローエディター
+- 内蔵のズーム、パン、選択機能
+- カスタマイズ可能なノードとエッジ
+- TypeScript サポート
 
 ## 🔌 拡張ポイント
 
@@ -309,6 +315,7 @@ App
 
 ### フロントエンド
 - **React 19**: UIフレームワーク
+- **@xyflow/react v12**: ワークフローエディター (React Flow)
 - **Zustand 5**: 状態管理
 - **Tailwind CSS 4**: スタイリング
 - **shadcn/ui**: UIコンポーネント

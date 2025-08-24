@@ -1,0 +1,105 @@
+{
+  "id": "sample-05-advanced-variables",
+  "name": "05 - Advanced Variables & Loops",
+  "flow": {
+    "nodes": [
+      {
+        "id": "input_base_text",
+        "type": "input",
+        "position": { "x": 50, "y": 200 },
+        "data": {
+          "label": "Base Text",
+          "value": "The weather is nice today.",
+          "inputType": "text",
+          "width": 200,
+          "height": 150
+        }
+      },
+      {
+        "id": "variable_counter",
+        "type": "variable_set",
+        "position": { "x": 300, "y": 100 },
+        "data": {
+          "label": "Initialize Counter",
+          "variableName": "iteration_count",
+          "value": "0",
+          "width": 200,
+          "height": 150
+        }
+      },
+      {
+        "id": "variable_max",
+        "type": "variable_set",
+        "position": { "x": 300, "y": 300 },
+        "data": {
+          "label": "Set Max Iterations",
+          "variableName": "max_iterations",
+          "value": "3",
+          "width": 200,
+          "height": 150
+        }
+      },
+      {
+        "id": "while_loop",
+        "type": "while",
+        "position": { "x": 550, "y": 200 },
+        "data": {
+          "label": "Iteration Loop",
+          "condition": "{{iteration_count}} < {{max_iterations}}",
+          "width": 220,
+          "height": 180
+        }
+      },
+      {
+        "id": "llm_enhance",
+        "type": "llm",
+        "position": { "x": 820, "y": 200 },
+        "data": {
+          "label": "Enhance Text",
+          "systemPrompt": "Enhance the given text by making it more descriptive and engaging. Add vivid details and improve the language while keeping the original meaning.",
+          "prompt": "Enhance this text (iteration {{iteration_count}}):",
+          "temperature": 0.9,
+          "model": "gpt-5-nano",
+          "width": 300,
+          "height": 220
+        }
+      },
+      {
+        "id": "variable_increment",
+        "type": "variable_set",
+        "position": { "x": 1180, "y": 100 },
+        "data": {
+          "label": "Increment Counter",
+          "variableName": "iteration_count",
+          "value": "{{iteration_count}} + 1",
+          "valueType": "expression",
+          "width": 200,
+          "height": 150
+        }
+      },
+      {
+        "id": "output_result",
+        "type": "output",
+        "position": { "x": 1180, "y": 300 },
+        "data": {
+          "label": "Enhanced Text",
+          "format": "text",
+          "title": "Final Enhanced Result",
+          "width": 220,
+          "height": 180
+        }
+      }
+    ],
+    "edges": [
+      { "id": "conn_1", "source": "input_base_text", "target": "while_loop", "sourceHandle": "0", "targetHandle": "0" },
+      { "id": "conn_2", "source": "variable_counter", "target": "while_loop", "sourceHandle": "0", "targetHandle": "1" },
+      { "id": "conn_3", "source": "variable_max", "target": "while_loop", "sourceHandle": "0", "targetHandle": "1" },
+      { "id": "conn_4", "source": "while_loop", "target": "llm_enhance", "sourceHandle": "0", "targetHandle": "0" },
+      { "id": "conn_5", "source": "llm_enhance", "target": "variable_increment", "sourceHandle": "0", "targetHandle": "0" },
+      { "id": "conn_6", "source": "variable_increment", "target": "while_loop", "sourceHandle": "0", "targetHandle": "2" },
+      { "id": "conn_7", "source": "llm_enhance", "target": "output_result", "sourceHandle": "0", "targetHandle": "0" }
+    ],
+    "viewport": { "x": 0, "y": 0, "zoom": 0.7 }
+  },
+  "lastModified": "2024-12-29T00:00:00.000Z"
+}

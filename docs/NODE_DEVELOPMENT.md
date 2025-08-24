@@ -239,29 +239,35 @@ export const APICallNode = createNodeDefinition(
 )
 ```
 
-## 🔌 ポートシステム
+## 🔌 ポートシステム (React Flow)
 
 ### 入力ポート
 - ノードが受け取るデータの接続点
 - 複数の入力ポートを定義可能
+- React Flowの`targetHandle`でポートを識別
 - 名前付きポートで特定のデータを受け取る
 
 ### 出力ポート
 - ノードが生成するデータの接続点
+- React Flowの`sourceHandle`でポートを識別
 - 複数の出力ポートで分岐処理が可能
 - 条件に応じた出力の振り分け
 
 ### ポートの命名規則
 ```javascript
-// 単一ポート
+// 単一ポート (React Flow handle: '0')
 ['input'] / ['output']
 
-// 複数ポート
+// 複数ポート (React Flow handle: '0', '1', ...)
 ['input1', 'input2'] / ['success', 'error']
 
 // 特殊ポート（ループ用）
 ['input', 'loop'] / ['output', 'loop']
 ```
+
+**React Flow でのポートマッピング**:
+- ポートのインデックスが`sourceHandle`/`targetHandle`に対応
+- 例: `['input1', 'input2']` → handle '0', '1'
 
 ## 🎯 高度な機能
 
@@ -348,6 +354,7 @@ describe('MyCustomNode', () => {
 - [ ] `createNodeDefinition` を使用して定義した
 - [ ] 実行関数を実装した
 - [ ] `index.js` にエクスポートを追加した
+- [ ] React Flow エディターでテストした
 - [ ] 必要に応じてUIパネルを追加した
 - [ ] エラーハンドリングを実装した
 - [ ] テストを作成した
@@ -420,6 +427,7 @@ try {
 - [types.js](../src/components/nodes/types.js) - ノード定義の型情報
 - [nodeExecutionService.js](../src/services/nodeExecutionService.js) - 実行エンジンの実装
 - [既存ノードの実装](../src/components/nodes/) - 実装例
+- [React Flow ドキュメント](https://reactflow.dev/) - React Flow 公式ドキュメント
 
 ---
 

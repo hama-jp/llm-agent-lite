@@ -16,6 +16,9 @@ pnpm-debug.log*
 .env
 .env.local
 .env.*.local
+.env.production.local
+.env.development.local
+.env.test.local
 
 # IDEs and editors
 .idea/
@@ -47,6 +50,9 @@ coverage/
 
 # Cache files
 .cache/
+.vite/
+.turbo/
+.next/
 
 # Temporary folders
 tmp/
@@ -61,3 +67,41 @@ idea/
 *-improvements.md
 *-todo.md
 fs_idea_*.md
+
+# Security sensitive files
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.csr
+*.jks
+*.keystore
+config/secrets*
+secrets/
+*.secret
+auth-config.json
+api-keys.json
+
+# Backup and temporary files
+*.backup
+*.bak
+*.tmp
+*.swp
+*.swo
+*~
+
+# Package manager files
+package-lock.json
+yarn.lock
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Debug and profiling
+profile/
+*.cpuprofile
+*.heapprofile

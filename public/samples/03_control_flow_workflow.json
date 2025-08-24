@@ -57,12 +57,12 @@
     ],
     "edges": [
       { "id": "conn_1", "source": "input_topic", "target": "if_1", "sourceHandle": "0", "targetHandle": "0" },
-      { "id": "conn_2", "source": "if_1", "target": "llm_technical", "sourceHandle": "true", "targetHandle": "0" },
-      { "id": "conn_3", "source": "if_1", "target": "llm_creative", "sourceHandle": "false", "targetHandle": "0" },
+      { "id": "conn_2", "source": "if_1", "target": "llm_technical", "sourceHandle": "0", "targetHandle": "0" },
+      { "id": "conn_3", "source": "if_1", "target": "llm_creative", "sourceHandle": "1", "targetHandle": "0" },
       { "id": "conn_4", "source": "llm_technical", "target": "output_1", "sourceHandle": "0", "targetHandle": "0" },
       { "id": "conn_5", "source": "llm_creative", "target": "output_1", "sourceHandle": "0", "targetHandle": "0" }
     ],
     "viewport": { "x": 0, "y": 0, "zoom": 1 }
   },
-  "lastModified": "2024-07-29T00:00:00.000Z"
+  "lastModified": "2024-12-29T00:00:00.000Z"
 }

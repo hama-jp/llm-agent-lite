@@ -63,7 +63,7 @@ const CustomNode = ({ data, children, id }) => {
   }
 
   return (
-    <div className={`relative bg-white border-2 ${borderClass} rounded-lg ${shadowClass} ${animationClass} w-fit min-w-64 ${minHeightClass} transition-all duration-300`}>
+    <div className={`relative bg-white border-2 ${borderClass} rounded-lg ${shadowClass} ${animationClass} w-fit min-w-64 ${minHeightClass} transition-all duration-300 overflow-hidden`}>
       {/* Input handles */}
       {finalInputs.map((input, index) => (
         <React.Fragment key={input.id || `input-${index}`}>

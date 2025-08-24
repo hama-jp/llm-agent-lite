@@ -371,9 +371,19 @@ class NodeExecutionService {
     const inputs = this.getNodeInputs(node, connections, nodes)
     
     // 条件分岐スキップチェック: If条件分岐からnullのみが入力された場合はスキップ
-    const inputConnections = connections.filter(conn => conn.to.nodeId === node.id);
+    // ReactFlow形式とlegacy形式の両方をサポート
+    const inputConnections = connections.filter(conn => {
+      // ReactFlow形式
+      if (conn.target === node.id) return true;
+      // Legacy形式
+      if (conn.to?.nodeId === node.id) return true;
+      return false;
+    });
+    
     const ifConnections = inputConnections.filter(conn => {
-      const sourceNode = nodes.find(n => n.id === conn.from.nodeId);
+      // ReactFlow形式とlegacy形式の両方からソースノードIDを取得
+      const sourceNodeId = conn.source || conn.from?.nodeId;
+      const sourceNode = nodes.find(n => n.id === sourceNodeId);
       return sourceNode && sourceNode.type === 'if';
     });
     
